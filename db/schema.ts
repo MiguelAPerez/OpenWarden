@@ -55,3 +55,26 @@ export const verificationTokens = sqliteTable(
         compoundKey: primaryKey({ columns: [vt.identifier, vt.token] }),
     })
 )
+
+export const permissions = sqliteTable("permission", {
+    id: text("id")
+        .primaryKey()
+        .$defaultFn(() => crypto.randomUUID()),
+    name: text("name").notNull().unique(), // e.g., 'posts:write'
+    description: text("description"), // e.g., 'Can create and edit posts'
+})
+
+export const userPermissions = sqliteTable(
+    "user_permission",
+    {
+        userId: text("userId")
+            .notNull()
+            .references(() => users.id, { onDelete: "cascade" }),
+        permissionId: text("permissionId")
+            .notNull()
+            .references(() => permissions.id, { onDelete: "cascade" }),
+    },
+    (up) => ({
+        compoundKey: primaryKey({ columns: [up.userId, up.permissionId] }),
+    })
+)

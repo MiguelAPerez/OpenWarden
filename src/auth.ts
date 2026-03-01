@@ -2,7 +2,7 @@ import type { NextAuthOptions, DefaultSession } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { DrizzleAdapter } from "@auth/drizzle-adapter"
 import { db } from "../db"
-import { users } from "../db/schema"
+import { users, permissions, userPermissions } from "../db/schema"
 import { eq } from "drizzle-orm"
 import bcryptjs from "bcryptjs"
 
@@ -10,7 +10,15 @@ declare module "next-auth" {
     interface Session {
         user: {
             id: string
+            permissions: string[]
         } & DefaultSession["user"]
+    }
+}
+
+declare module "next-auth/jwt" {
+    interface JWT {
+        id: string
+        permissions: string[]
     }
 }
 
@@ -56,15 +64,26 @@ export const authOptions: NextAuthOptions = {
         }),
     ],
     callbacks: {
-        jwt({ token, user }) {
+        async jwt({ token, user }) {
+            // Initial sign in
             if (user) {
                 token.id = user.id
+
+                // Fetch permissions for this user
+                const userPerms = await db
+                    .select({ name: permissions.name })
+                    .from(permissions)
+                    .innerJoin(userPermissions, eq(userPermissions.permissionId, permissions.id))
+                    .where(eq(userPermissions.userId, user.id))
+
+                token.permissions = userPerms.map((p) => p.name)
             }
             return token
         },
         session({ session, token }) {
             if (token.id) {
                 session.user.id = token.id as string
+                session.user.permissions = (token.permissions as string[]) || []
             }
             return session
         },
