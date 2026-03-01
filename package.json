@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "githook:install": "bash scripts/install-hooks.sh",
-    "db:seed": "tsx db/seed.ts"
+    "db:seed": "tsx db/seed.ts",
+    "db:clear": "tsx db/clear.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.1",
