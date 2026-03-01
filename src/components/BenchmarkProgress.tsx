@@ -3,6 +3,24 @@
 import React, { useEffect, useState } from "react";
 import { getBenchmarkProgress, simulateBenchmarkStep } from "@/app/actions/agent";
 import { Benchmark, BenchmarkEntry } from "@/types/agent";
+import { useRouter } from "next/navigation";
+
+const LiveTimer = ({ startedAt }: { startedAt: Date | string }) => {
+    const [elapsed, setElapsed] = useState(0);
+
+    useEffect(() => {
+        if (!startedAt) return;
+        // Adjust for any small clock skew by not going below 0
+        const start = new Date(startedAt).getTime();
+
+        const interval = setInterval(() => {
+            setElapsed(Math.max(0, Date.now() - start));
+        }, 100);
+        return () => clearInterval(interval);
+    }, [startedAt]);
+
+    return <span>{(elapsed / 1000).toFixed(1)}s</span>;
+};
 
 export const BenchmarkProgress = ({
     initialBenchmarkId
@@ -10,20 +28,26 @@ export const BenchmarkProgress = ({
     initialBenchmarkId: string | null
 }) => {
     const [benchmark, setBenchmark] = useState<(Benchmark & { entries: BenchmarkEntry[] }) | null>(null);
+    const router = useRouter();
 
     useEffect(() => {
         if (!initialBenchmarkId) return;
 
         const fetchData = async () => {
-            const data = await getBenchmarkProgress(initialBenchmarkId);
-            setBenchmark(data as (Benchmark & { entries: BenchmarkEntry[] }) | null);
+            const data = await getBenchmarkProgress(initialBenchmarkId) as (Benchmark & { entries: BenchmarkEntry[] }) | null;
+            setBenchmark(prev => {
+                if (prev && prev.status === "running" && data?.status === "completed") {
+                    router.refresh(); // Refresh server state (e.g. results component)
+                }
+                return data;
+            });
         };
 
 
         fetchData();
         const interval = setInterval(fetchData, 3000);
         return () => clearInterval(interval);
-    }, [initialBenchmarkId]);
+    }, [initialBenchmarkId, router]);
 
     // Simulate progress if it's running
     useEffect(() => {
@@ -34,14 +58,23 @@ export const BenchmarkProgress = ({
                     // Refresh data
                     const data = await getBenchmarkProgress(benchmark.id);
                     setBenchmark(data as (Benchmark & { entries: BenchmarkEntry[] }) | null);
+                    router.refresh();
                 }
 
             }, 3000);
             return () => clearTimeout(timer);
         }
-    }, [benchmark]);
+    }, [benchmark, router]);
 
     const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
+    const [collapsedModels, setCollapsedModels] = useState<Record<string, boolean>>({});
+
+    const toggleModelCollapse = (modelName: string) => {
+        setCollapsedModels(prev => ({
+            ...prev,
+            [modelName]: prev[modelName] === false ? true : false
+        }));
+    };
 
     const selectedEntry = React.useMemo(() => {
         if (!benchmark) return null;
@@ -122,77 +155,117 @@ export const BenchmarkProgress = ({
                         Evaluation Queue
                         <span className="text-[10px] lowercase italic opacity-50 px-2">(Click an entry to view details)</span>
                     </h3>
-                    <div className="grid grid-cols-1 gap-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                        {benchmark.entries.map((entry, idx) => (
-                            <div
-                                key={entry.id}
-                                onClick={() => entry.status === "completed" && setSelectedEntryId(entry.id)}
-                                className={`glass p-4 rounded-2xl border transition-all flex items-center justify-between group cursor-pointer ${entry.status === "running"
-                                    ? "border-primary/50 bg-primary/5 scale-[1.01] shadow-xl"
-                                    : entry.status === "completed"
-                                        ? selectedEntryId === entry.id ? "border-primary bg-primary/5" : "border-green-500/20 hover:border-primary/40"
-                                        : "border-border/30 opacity-50 cursor-not-allowed"
-                                    }`}
-                            >
-                                <div className="flex items-center gap-5">
-                                    <div className="w-8 h-8 rounded-xl bg-foreground/5 flex items-center justify-center font-mono text-xs font-bold text-foreground/30 group-hover:bg-primary/10 group-hover:text-primary transition-all">
-                                        {(idx + 1).toString().padStart(2, '0')}
-                                    </div>
-                                    <div className="space-y-0.5">
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-bold text-foreground/80">{entry.model}</span>
-                                            {entry.category && (
-                                                <span className="text-[10px] px-1.5 py-0.5 bg-foreground/5 rounded text-foreground/40 font-bold uppercase">{entry.category}</span>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <span className={`text-[10px] font-bold uppercase tracking-widest ${entry.status === "running" ? "text-primary animate-pulse" :
-                                                entry.status === "completed" ? "text-green-500/60" : "text-foreground/20"
-                                                }`}>
-                                                {entry.status}
-                                            </span>
-                                            {entry.status === "completed" && entry.score !== null && (
-                                                <span className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary rounded font-black">
-                                                    {entry.score}%
-                                                </span>
-                                            )}
-                                            {entry.status === "completed" && entry.metrics && (
-                                                <span className="text-[10px] text-foreground/20 italic">
-                                                    {(() => {
-                                                        try {
-                                                            const m = JSON.parse(entry.metrics);
-                                                            return m.keywordMatches?.filter((match: { found: boolean }) => match.found).length || 0;
-                                                        } catch {
-                                                            return 0;
-                                                        }
-                                                    })()} matches
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
+                    <div className="grid grid-cols-1 gap-6 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                        {Object.entries(
+                            benchmark.entries.reduce((acc, entry) => {
+                                if (!acc[entry.model]) acc[entry.model] = [];
+                                acc[entry.model].push(entry);
+                                return acc;
+                            }, {} as Record<string, BenchmarkEntry[]>)
+                        ).map(([modelName, entries]) => {
+                            const modelCompleted = entries.filter(e => e.status === "completed" || e.status === "failed").length;
+                            const modelProgress = entries.length > 0 ? (modelCompleted / entries.length) * 100 : 0;
+                            const isCollapsed = collapsedModels[modelName] !== false;
 
-                                <div className="flex items-center gap-4">
-                                    {entry.duration && (
-                                        <span className="text-[10px] text-foreground/20 font-mono">
-                                            {entry.duration}ms
-                                        </span>
-                                    )}
-                                    {entry.status === "running" && (
-                                        <div className="flex items-center gap-1">
-                                            <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]" />
-                                            <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]" />
-                                            <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" />
+                            return (
+                                <div key={modelName} className="space-y-3 relative">
+                                    <h4
+                                        onClick={() => toggleModelCollapse(modelName)}
+                                        className="text-xs font-bold font-mono tracking-widest text-foreground/60 sticky top-0 bg-background/90 backdrop-blur-xl py-2 z-10 border-b border-border/10 flex items-center justify-between gap-2 rounded-t-lg cursor-pointer hover:text-primary transition-colors"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-primary w-4">{isCollapsed ? "▶" : "▼"}</span>
+                                            <span className="text-primary">⚡</span> {modelName}
+                                            <span className="text-[10px] opacity-60 normal-case">({modelCompleted}/{entries.length})</span>
                                         </div>
-                                    )}
-                                    {entry.status === "completed" && (
-                                        <div className="w-6 h-6 rounded-full bg-green-500/10 flex items-center justify-center">
-                                            <span className="text-green-500 text-xs">✓</span>
+                                        {isCollapsed && (
+                                            <div className="w-24 bg-foreground/5 h-2 rounded-full overflow-hidden border border-border/30">
+                                                <div
+                                                    className="h-full bg-gradient-to-r from-primary to-primary/60 rounded-full transition-all duration-1000 shadow-lg shadow-primary/20"
+                                                    style={{ width: `${modelProgress}%` }}
+                                                />
+                                            </div>
+                                        )}
+                                    </h4>
+                                    {!isCollapsed && (
+                                        <div className="grid grid-cols-1 gap-3">
+                                            {entries.map((entry, idx) => (
+                                                <div
+                                                    key={entry.id}
+                                                    onClick={() => (entry.status === "completed" || entry.status === "running") && setSelectedEntryId(entry.id)}
+                                                    className={`glass p-4 rounded-2xl border transition-all flex items-center justify-between group cursor-pointer ${entry.status === "running"
+                                                        ? selectedEntryId === entry.id ? "border-primary bg-primary/10 shadow-xl" : "border-primary/50 bg-primary/5 scale-[1.01] shadow-xl"
+                                                        : entry.status === "completed"
+                                                            ? selectedEntryId === entry.id ? "border-primary bg-primary/5" : "border-green-500/20 hover:border-primary/40"
+                                                            : "border-border/30 opacity-50 cursor-not-allowed"
+                                                        }`}
+                                                >
+                                                    <div className="flex items-center gap-5">
+                                                        <div className="w-8 h-8 rounded-xl bg-foreground/5 flex items-center justify-center font-mono text-xs font-bold text-foreground/30 group-hover:bg-primary/10 group-hover:text-primary transition-all">
+                                                            {(idx + 1).toString().padStart(2, '0')}
+                                                        </div>
+                                                        <div className="space-y-0.5">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-bold text-foreground/80">{entry.category || "Uncategorized"}</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className={`text-[10px] font-bold uppercase tracking-widest ${entry.status === "running" ? "text-primary animate-pulse" :
+                                                                    entry.status === "completed" ? "text-green-500/60" : "text-foreground/20"
+                                                                    }`}>
+                                                                    {entry.status}
+                                                                </span>
+                                                                {entry.status === "completed" && entry.score !== null && (
+                                                                    <span className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary rounded font-black">
+                                                                        {entry.score}%
+                                                                    </span>
+                                                                )}
+                                                                {entry.status === "completed" && entry.metrics && (
+                                                                    <span className="text-[10px] text-foreground/20 italic">
+                                                                        {(() => {
+                                                                            try {
+                                                                                const m = JSON.parse(entry.metrics);
+                                                                                return m.keywordMatches?.filter((match: { found: boolean }) => match.found).length || 0;
+                                                                            } catch {
+                                                                                return 0;
+                                                                            }
+                                                                        })()} matches
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex items-center gap-4">
+                                                        {entry.duration && entry.status === "completed" && (
+                                                            <span className="text-[10px] text-foreground/20 font-mono">
+                                                                {entry.duration}ms
+                                                            </span>
+                                                        )}
+                                                        {entry.status === "running" && entry.startedAt && (
+                                                            <span className="text-[10px] text-primary/70 font-mono flex items-center gap-2">
+                                                                <LiveTimer startedAt={entry.startedAt} />
+                                                            </span>
+                                                        )}
+                                                        {entry.status === "running" && (
+                                                            <div className="flex items-center gap-1">
+                                                                <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]" />
+                                                                <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]" />
+                                                                <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" />
+                                                            </div>
+                                                        )}
+                                                        {entry.status === "completed" && (
+                                                            <div className="w-6 h-6 rounded-full bg-green-500/10 flex items-center justify-center">
+                                                                <span className="text-green-500 text-xs">✓</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
                                     )}
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             </div>
@@ -206,53 +279,80 @@ export const BenchmarkProgress = ({
                         </div>
 
                         <div className="space-y-4">
-                            <div className="p-4 bg-background/40 rounded-2xl border border-border/50">
-                                <p className="text-[10px] font-bold uppercase tracking-widest text-foreground/30 mb-2">Metrics</p>
-                                <div className="grid grid-cols-3 gap-4">
-                                    <div>
-                                        <p className="text-xl font-black text-primary">{selectedEntry.score}%</p>
-                                        <p className="text-[8px] uppercase font-bold text-foreground/20">Accuracy</p>
+                            {selectedEntry.status === "running" ? (
+                                <div className="p-4 bg-primary/5 rounded-2xl border border-primary/20 space-y-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-1">
+                                            <div className="w-2 h-2 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]" />
+                                            <div className="w-2 h-2 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]" />
+                                            <div className="w-2 h-2 bg-primary rounded-full animate-bounce" />
+                                        </div>
+                                        <span className="text-sm font-bold text-primary">Calling Ollama API Component...</span>
                                     </div>
-                                    <div>
-                                        <p className="text-xl font-black text-foreground/60">{selectedEntry.duration}ms</p>
-                                        <p className="text-[8px] uppercase font-bold text-foreground/20">Latency</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-xl font-black text-foreground/60">{selectedEntry.parsedMetrics?.responseSize || 0}c</p>
-                                        <p className="text-[8px] uppercase font-bold text-foreground/20">Size</p>
+                                    <p className="text-xs text-foreground/60">
+                                        Model: <span className="font-bold">{selectedEntry.model}</span>
+                                    </p>
+                                    {selectedEntry.startedAt && (
+                                        <p className="text-xs font-mono text-foreground/40">
+                                            Elapsed: <span className="text-primary"><LiveTimer startedAt={selectedEntry.startedAt} /></span>
+                                        </p>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="p-4 bg-background/40 rounded-2xl border border-border/50">
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-foreground/30 mb-2">Metrics</p>
+                                    <div className="grid grid-cols-3 gap-4">
+                                        <div>
+                                            <p className="text-xl font-black text-primary">{selectedEntry.score}%</p>
+                                            <p className="text-[8px] uppercase font-bold text-foreground/20">Accuracy</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xl font-black text-foreground/60">{selectedEntry.duration}ms</p>
+                                            <p className="text-[8px] uppercase font-bold text-foreground/20">Latency</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xl font-black text-foreground/60">{selectedEntry.parsedMetrics?.responseSize || 0}c</p>
+                                            <p className="text-[8px] uppercase font-bold text-foreground/20">Size</p>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            )}
 
-                            <div className="space-y-2">
-                                <p className="text-[10px] font-bold uppercase tracking-widest text-foreground/30">Prompt</p>
-                                <div className="p-3 bg-foreground/5 rounded-xl text-xs text-foreground/60 leading-relaxed max-h-32 overflow-y-auto italic">
-                                    &quot;{selectedEntry.prompt}&quot;
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <p className="text-[10px] font-bold uppercase tracking-widest text-foreground/30">Output</p>
-                                <div className="p-3 bg-foreground/5 rounded-xl text-xs text-foreground/80 leading-relaxed max-h-48 overflow-y-auto font-mono">
-                                    {selectedEntry.output}
-                                </div>
-                            </div>
-
-                            {selectedEntry.parsedMetrics && (
+                            {selectedEntry.prompt && (
                                 <div className="space-y-2">
-                                    <p className="text-[10px] font-bold uppercase tracking-widest text-foreground/30">Keyword Matches</p>
-                                    <div className="flex flex-wrap gap-2">
-                                        {selectedEntry.parsedMetrics.keywordMatches?.map((m: { keyword: string, found: boolean }, i: number) => (
-                                            <span
-                                                key={i}
-                                                className={`px-2 py-1 rounded-md text-[9px] font-bold border ${m.found ? "bg-green-500/10 border-green-500/20 text-green-500" : "bg-red-500/10 border-red-500/20 text-red-500"
-                                                    }`}
-                                            >
-                                                {m.keyword} {m.found ? "✓" : "✗"}
-                                            </span>
-                                        ))}
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-foreground/30">Prompt {selectedEntry.status === "running" && "(Being Processing)"}</p>
+                                    <div className="p-3 bg-foreground/5 rounded-xl text-xs text-foreground/60 leading-relaxed max-h-32 overflow-y-auto italic">
+                                        &quot;{selectedEntry.prompt}&quot;
                                     </div>
                                 </div>
+                            )}
+
+                            {selectedEntry.status === "completed" && (
+                                <>
+                                    <div className="space-y-2">
+                                        <p className="text-[10px] font-bold uppercase tracking-widest text-foreground/30">Output</p>
+                                        <div className="p-3 bg-foreground/5 rounded-xl text-xs text-foreground/80 leading-relaxed max-h-48 overflow-y-auto font-mono">
+                                            {selectedEntry.output}
+                                        </div>
+                                    </div>
+
+                                    {selectedEntry.parsedMetrics && (
+                                        <div className="space-y-2">
+                                            <p className="text-[10px] font-bold uppercase tracking-widest text-foreground/30">Keyword Matches</p>
+                                            <div className="flex flex-wrap gap-2">
+                                                {selectedEntry.parsedMetrics.keywordMatches?.map((m: { keyword: string, found: boolean }, i: number) => (
+                                                    <span
+                                                        key={i}
+                                                        className={`px-2 py-1 rounded-md text-[9px] font-bold border ${m.found ? "bg-green-500/10 border-green-500/20 text-green-500" : "bg-red-500/10 border-red-500/20 text-red-500"
+                                                            }`}
+                                                    >
+                                                        {m.keyword} {m.found ? "✓" : "✗"}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
                     </div>

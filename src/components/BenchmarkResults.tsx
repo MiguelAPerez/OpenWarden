@@ -16,6 +16,7 @@ export const BenchmarkResults = ({
             totalDuration: number;
             totalResponseSize: number;
             entryCount: number;
+            runs: Set<string>;
             categories: Record<string, { totalScore: number; entryCount: number }>;
         }> = {};
 
@@ -30,10 +31,12 @@ export const BenchmarkResults = ({
                         totalDuration: 0,
                         totalResponseSize: 0,
                         entryCount: 0,
+                        runs: new Set(),
                         categories: {}
                     };
                 }
 
+                modelStats[model].runs.add(benchmark.name);
                 modelStats[model].totalScore += entry.score;
                 if (entry.duration) modelStats[model].totalDuration += entry.duration;
                 try {
@@ -58,6 +61,7 @@ export const BenchmarkResults = ({
         const sortedModels = Object.entries(modelStats).map(([model, stats]) => {
             return {
                 model,
+                runs: Array.from(stats.runs),
                 avgScore: Math.round(stats.totalScore / stats.entryCount),
                 avgDuration: Math.round(stats.totalDuration / stats.entryCount),
                 avgResponseSize: Math.round(stats.totalResponseSize / stats.entryCount),
@@ -131,6 +135,11 @@ export const BenchmarkResults = ({
                                         </>
                                     )}
                                 </p>
+                                {stat.runs.length > 0 && (
+                                    <p className="text-[10px] text-foreground/30 font-mono truncate mt-1" title={`Runs: ${stat.runs.join(', ')}`}>
+                                        runs: {stat.runs.slice(0, 3).join(', ')}{stat.runs.length > 3 ? ` +${stat.runs.length - 3} more` : ''}
+                                    </p>
+                                )}
                             </div>
 
                             <div className="text-right">

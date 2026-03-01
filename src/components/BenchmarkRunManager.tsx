@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { triggerBenchmark, deleteBenchmarkRun, getActiveBenchmarks } from "@/app/actions/agent";
 import { BenchmarkRun, ContextGroup, Benchmark } from "@/types/agent";
 import { BenchmarkRunForm } from "./BenchmarkRunForm";
+import { useRouter } from "next/navigation";
 
 export const BenchmarkRunManager = ({
     initialRuns,
@@ -21,14 +22,24 @@ export const BenchmarkRunManager = ({
     const [editingRun, setEditingRun] = useState<BenchmarkRun | null>(null);
     const [isTriggering, setIsTriggering] = useState<string | null>(null);
     const [activeBenchmarks, setActiveBenchmarks] = useState<Benchmark[]>(initialActiveBenchmarks);
+    const router = useRouter();
 
     React.useEffect(() => {
         const interval = setInterval(async () => {
-            const latestActive = await getActiveBenchmarks();
-            setActiveBenchmarks(latestActive as Benchmark[]);
+            const latestActive = await getActiveBenchmarks() as Benchmark[];
+            setActiveBenchmarks(prev => {
+                const currentIds = new Set(latestActive.map(b => b.id));
+                const hasFinishedRuns = prev.some(b => !currentIds.has(b.id));
+
+                if (hasFinishedRuns) {
+                    router.refresh();
+                }
+
+                return latestActive;
+            });
         }, 3000);
         return () => clearInterval(interval);
-    }, []);
+    }, [router]);
 
     const handleTrigger = async (runId: string) => {
         setIsTriggering(runId);

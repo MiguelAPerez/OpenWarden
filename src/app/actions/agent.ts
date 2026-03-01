@@ -397,7 +397,7 @@ export async function simulateBenchmarkStep(benchmarkId: string) {
 
     const startedAt = new Date();
     db.update(benchmarkEntries)
-        .set({ status: "running", startedAt })
+        .set({ status: "running", startedAt, category, prompt })
         .where(eq(benchmarkEntries.id, nextPendingEntry.id))
         .run();
 

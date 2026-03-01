@@ -22,7 +22,7 @@ export const EvaluationLabClient = ({
     completedBenchmarks: (Benchmark & { entries: BenchmarkEntry[] })[];
     initialActiveBenchmarks: Benchmark[];
 }) => {
-    const [activeTab, setActiveTab] = useState(latestBenchmark?.status === "running" ? "progress" : "runs");
+    const [activeTab, setActiveTab] = useState(latestBenchmark?.status === "running" ? "progress" : "results");
     const [currentBenchmarkId, setCurrentBenchmarkId] = useState<string | null>(latestBenchmark?.id || null);
 
     const tabs = [
