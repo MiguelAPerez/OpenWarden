@@ -7,8 +7,8 @@ export default function Home() {
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-blue-500/20 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] rounded-full bg-purple-500/20 blur-[120px] pointer-events-none" />
 
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-sans text-sm lg:flex border-b border-white/5 pb-6 mb-16 animate-fade-in">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-white/10 bg-black/50 backdrop-blur-lg pb-6 pt-8 backdrop-blur-2xl lg:static lg:w-auto lg:rounded-2xl lg:border lg:bg-white/5 lg:p-4 transition-all hover:bg-white/10">
+      <div className="z-10 w-full max-w-5xl items-center justify-between font-sans text-sm lg:flex border-b border-border pb-6 mb-16 animate-fade-in">
+        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-border bg-background/50 backdrop-blur-lg pb-6 pt-8 backdrop-blur-2xl lg:static lg:w-auto lg:rounded-2xl lg:border lg:bg-foreground/5 lg:p-4 transition-all hover:bg-foreground/10">
           Get started by editing&nbsp;
           <code className="font-mono font-bold text-primary">src/app/page.tsx</code>
         </p>
@@ -26,10 +26,10 @@ export default function Home() {
       </div>
 
       <div className="relative flex flex-col place-items-center mb-24 animate-slide-up">
-        <h1 className="text-5xl md:text-7xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60 text-center mb-6">
+        <h1 className="text-5xl md:text-7xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-foreground to-foreground/60 text-center mb-6">
           Premium Next.js
         </h1>
-        <p className="text-lg md:text-xl text-white/50 text-center max-w-2xl">
+        <p className="text-lg md:text-xl text-foreground/60 text-center max-w-2xl">
           A beautifully crafted starting point with Tailwind CSS, TypeScript, and rich aesthetics.
         </p>
 
@@ -37,7 +37,7 @@ export default function Home() {
           <button className="px-8 py-3 rounded-full bg-primary text-primary-foreground font-medium hover:bg-blue-600 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-blue-500/20">
             Get Started
           </button>
-          <button className="px-8 py-3 rounded-full glass hover:bg-white/10 transition-all hover:scale-105 active:scale-95">
+          <button className="px-8 py-3 rounded-full glass hover:bg-foreground/10 transition-all hover:scale-105 active:scale-95">
             Documentation
           </button>
         </div>
@@ -53,17 +53,17 @@ export default function Home() {
           <a
             key={i}
             href={item.href}
-            className="group rounded-2xl glass p-6 transition-all hover:bg-white/5 hover:border-white/10 hover:-translate-y-1 block"
+            className="group rounded-2xl glass p-6 transition-all hover:bg-foreground/5 hover:border-border hover:-translate-y-1 block"
             target="_blank"
             rel="noopener noreferrer"
           >
-            <h2 className="mb-3 text-2xl font-semibold tracking-tight text-white flex items-center gap-2">
+            <h2 className="mb-3 text-2xl font-semibold tracking-tight text-foreground flex items-center gap-2">
               {item.title}
               <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none text-primary">
                 -&gt;
               </span>
             </h2>
-            <p className="m-0 max-w-[30ch] text-sm text-white/60 leading-relaxed group-hover:text-white/80 transition-colors cursor-default">
+            <p className="m-0 max-w-[30ch] text-sm text-foreground/60 leading-relaxed group-hover:text-foreground/80 transition-colors cursor-default">
               {item.desc}
             </p>
           </a>
