@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { getBenchmarkProgress, simulateBenchmarkStep } from "@/app/actions/agent";
 import { Benchmark, BenchmarkEntry } from "@/types/agent";
 import { useRouter } from "next/navigation";
+import { getOllamaModels } from "@/app/actions/ollama";
 
 const LiveTimer = ({ startedAt }: { startedAt: Date | string }) => {
     const [elapsed, setElapsed] = useState(0);
@@ -28,7 +29,29 @@ export const BenchmarkProgress = ({
     initialBenchmarkId: string | null
 }) => {
     const [benchmark, setBenchmark] = useState<(Benchmark & { entries: BenchmarkEntry[] }) | null>(null);
+    const [modelCapabilities, setModelCapabilities] = useState<Record<string, string[]>>({});
     const router = useRouter();
+
+    useEffect(() => {
+        async function loadCapabilities() {
+            try {
+                const models = await getOllamaModels();
+                const caps: Record<string, string[]> = {};
+                models.forEach(m => {
+                    try {
+                        if (m.details) {
+                            const parsed = JSON.parse(m.details);
+                            caps[m.name] = parsed.capabilities || [];
+                        }
+                    } catch { }
+                });
+                setModelCapabilities(caps);
+            } catch (err) {
+                console.error("Failed to load capabilities", err);
+            }
+        }
+        loadCapabilities();
+    }, []);
 
     useEffect(() => {
         if (!initialBenchmarkId) return;
@@ -176,6 +199,12 @@ export const BenchmarkProgress = ({
                                         <div className="flex items-center gap-2">
                                             <span className="text-primary w-4">{isCollapsed ? "▶" : "▼"}</span>
                                             <span className="text-primary">⚡</span> {modelName}
+                                            {(modelCapabilities[modelName]?.includes("tools") || modelCapabilities[modelName]?.includes("thinking")) && (
+                                                <span className="flex gap-1.5 ml-1" title="Model Capabilities">
+                                                    {modelCapabilities[modelName].includes("tools") && <span className="text-[9px] px-1 py-0.5 rounded bg-blue-500/10 text-blue-500 border border-blue-500/20 leading-none" title="Supports Tools">🔧</span>}
+                                                    {modelCapabilities[modelName].includes("thinking") && <span className="text-[9px] px-1 py-0.5 rounded bg-purple-500/10 text-purple-600 border border-purple-500/20 leading-none" title="Has Thinking Phase">🧠</span>}
+                                                </span>
+                                            )}
                                             <span className="text-[10px] opacity-60 normal-case">({modelCompleted}/{entries.length})</span>
                                         </div>
                                         {isCollapsed && (

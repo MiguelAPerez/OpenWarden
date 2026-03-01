@@ -24,13 +24,22 @@ export const BenchmarkRunForm = ({
     );
     const [runName, setRunName] = useState(initialData?.name || "");
     const [isSaving, setIsSaving] = useState(false);
-    const [ollamaModels, setOllamaModels] = useState<string[]>([]);
+    const [ollamaModels, setOllamaModels] = useState<{ name: string, capabilities: string[] }[]>([]);
 
     useEffect(() => {
         async function loadOllamaModels() {
             try {
                 const models = await getOllamaModels();
-                setOllamaModels(models.map(m => m.name));
+                setOllamaModels(models.map(m => {
+                    let capabilities: string[] = [];
+                    try {
+                        if (m.details) {
+                            const parsed = JSON.parse(m.details);
+                            capabilities = parsed.capabilities || [];
+                        }
+                    } catch { }
+                    return { name: m.name, capabilities };
+                }));
             } catch (err) {
                 console.error("Failed to load Ollama models", err);
             }
@@ -38,7 +47,7 @@ export const BenchmarkRunForm = ({
         loadOllamaModels();
     }, []);
 
-    const cloudModels: string[] = [];
+    const cloudModels: { name: string, capabilities: string[] }[] = [];
     const availableModels = [...cloudModels, ...ollamaModels];
 
     const toggleModel = (model: string) => {
@@ -115,17 +124,25 @@ export const BenchmarkRunForm = ({
                         <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                             {availableModels.map(model => (
                                 <div
-                                    key={model}
-                                    onClick={() => toggleModel(model)}
-                                    className={`flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all ${selectedModels.includes(model)
+                                    key={model.name}
+                                    onClick={() => toggleModel(model.name)}
+                                    className={`flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all ${selectedModels.includes(model.name)
                                         ? "bg-primary/5 border-primary/40 text-primary shadow-sm"
                                         : "bg-background/20 border-border/50 hover:border-foreground/10 text-foreground/60"
                                         }`}
                                 >
-                                    <span className="text-sm font-medium">{model}</span>
-                                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedModels.includes(model) ? "bg-primary border-primary" : "border-border/50"
+                                    <div className="flex flex-col gap-1.5">
+                                        <span className="text-sm font-medium">{model.name}</span>
+                                        {(model.capabilities.includes("tools") || model.capabilities.includes("thinking")) && (
+                                            <div className="flex gap-2">
+                                                {model.capabilities.includes("tools") && <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-500 border border-blue-500/20 font-bold tracking-widest uppercase">🔧 Tools</span>}
+                                                {model.capabilities.includes("thinking") && <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-600 border border-purple-500/20 font-bold tracking-widest uppercase">🧠 Thinking</span>}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className={`shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedModels.includes(model.name) ? "bg-primary border-primary" : "border-border/50"
                                         }`}>
-                                        {selectedModels.includes(model) && (
+                                        {selectedModels.includes(model.name) && (
                                             <div className="w-1.5 h-1.5 bg-background rounded-full" />
                                         )}
                                     </div>

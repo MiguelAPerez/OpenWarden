@@ -1,18 +1,3 @@
-export const models = [
-    // 'llama3.2:latest',
-    'ministral-3:8b',
-    // 'dolphin3:8b',
-    // 'qwen3-vl:8b',  11 slowest
-    'ministral-3:14b',
-    'qwen3:14b',
-    // 'gpt-oss:20b',
-    // 'gemma3:27b',
-    'gemma3:4b',
-    'qwen3-coder:30b',
-    'qwen2.5-coder:7b',
-    'qwen2.5-coder:14b',
-    'mistral:latest'
-];
 /*
 ┌─────────┬─────────────────────┬─────────────┬──────────────────┬───────────┬─────────────────┬─────────────────┬────────────┬───────────┬──────────────────┬────────────────┬───────────────┬──────────┬────────────┬──────────────┬────────────────┐
 │ (index) │ Model               │ Overall (%) │ Avg Latency (ms) │ Technical │ Code Generation │ Data Extraction │ Formatting │ Reasoning │ Creative Writing │ Code Debugging │ Summarization │ Security │ CLI Skills │ High Context │ System Context │

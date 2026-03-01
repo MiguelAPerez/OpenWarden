@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import { Benchmark, BenchmarkEntry } from "@/types/agent";
+import { getOllamaModels } from "@/app/actions/ollama";
 
 export const BenchmarkResults = ({
     data
@@ -9,6 +10,28 @@ export const BenchmarkResults = ({
     data: (Benchmark & { entries: BenchmarkEntry[] })[];
 }) => {
     const [selectedModel, setSelectedModel] = useState<string | null>(null);
+    const [modelCapabilities, setModelCapabilities] = useState<Record<string, string[]>>({});
+
+    React.useEffect(() => {
+        async function loadCapabilities() {
+            try {
+                const models = await getOllamaModels();
+                const caps: Record<string, string[]> = {};
+                models.forEach(m => {
+                    try {
+                        if (m.details) {
+                            const parsed = JSON.parse(m.details);
+                            caps[m.name] = parsed.capabilities || [];
+                        }
+                    } catch { }
+                });
+                setModelCapabilities(caps);
+            } catch (err) {
+                console.error("Failed to load capabilities", err);
+            }
+        }
+        loadCapabilities();
+    }, []);
 
     const aggregatedData = useMemo(() => {
         const modelStats: Record<string, {
@@ -123,7 +146,15 @@ export const BenchmarkResults = ({
                             </div>
 
                             <div className="flex-1 min-w-0">
-                                <h3 className="font-bold text-lg truncate group-hover:text-primary transition-colors">{stat.model}</h3>
+                                <h3 className="font-bold text-lg truncate group-hover:text-primary transition-colors flex items-center gap-2">
+                                    {stat.model}
+                                    {(modelCapabilities[stat.model]?.includes("tools") || modelCapabilities[stat.model]?.includes("thinking")) && (
+                                        <span className="flex gap-1.5 ml-1" title="Model Capabilities">
+                                            {modelCapabilities[stat.model].includes("tools") && <span className="text-[10px] w-6 h-5 flex items-center justify-center rounded bg-blue-500/10 text-blue-500 border border-blue-500/20" title="Supports Tools">🔧</span>}
+                                            {modelCapabilities[stat.model].includes("thinking") && <span className="text-[10px] w-6 h-5 flex items-center justify-center rounded bg-purple-500/10 text-purple-600 border border-purple-500/20" title="Has Thinking Phase">🧠</span>}
+                                        </span>
+                                    )}
+                                </h3>
                                 <p className="text-xs text-foreground/40 font-mono flex flex-wrap items-center gap-2">
                                     <span>{stat.evaluations} evals</span>
                                     <span>•</span>

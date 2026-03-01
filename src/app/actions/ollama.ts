@@ -74,11 +74,40 @@ export async function syncOllamaModels() {
         const now = new Date();
         // Insert new models
         for (const model of models) {
+            let capabilities: string[] = [];
+            try {
+                const showRes = await fetch(`${config.url}/api/show`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name: model.name }),
+                    cache: "no-store",
+                });
+                if (showRes.ok) {
+                    const showData = await showRes.json();
+                    capabilities = showData.capabilities || [];
+
+                    // Artificially inject "thinking" if missing but applicable
+                    const template = showData.template || "";
+                    if (model.name.toLowerCase().includes("deepseek-r1") || template.includes("<think>")) {
+                        if (!capabilities.includes("thinking")) {
+                            capabilities.push("thinking");
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error(`Failed to fetch details for ${model.name}`, e);
+            }
+
+            const mergedDetails = {
+                ...(model.details || {}),
+                capabilities
+            };
+
             db.insert(ollamaModels)
                 .values({
                     userId: session.user.id,
                     name: model.name,
-                    details: JSON.stringify(model.details || {}),
+                    details: JSON.stringify(mergedDetails),
                     updatedAt: now,
                 })
                 .run();
