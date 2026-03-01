@@ -10,6 +10,7 @@ declare module "next-auth" {
     interface Session {
         user: {
             id: string
+            username: string
             permissions: string[]
         } & DefaultSession["user"]
     }
@@ -18,6 +19,7 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
     interface JWT {
         id: string
+        username: string
         permissions: string[]
     }
 }
@@ -30,16 +32,16 @@ export const authOptions: NextAuthOptions = {
         CredentialsProvider({
             name: "Credentials",
             credentials: {
-                email: { label: "Email", type: "email" },
+                username: { label: "Username", type: "text" },
                 password: { label: "Password", type: "password" },
             },
             async authorize(credentials) {
-                if (!credentials?.email || !credentials?.password) {
+                if (!credentials?.username || !credentials?.password) {
                     return null
                 }
 
-                const email = credentials.email as string
-                const user = await db.select().from(users).where(eq(users.email, email)).get()
+                const username = credentials.username as string
+                const user = await db.select().from(users).where(eq(users.username, username)).get()
 
                 if (!user || !user.password) {
                     return null
@@ -54,6 +56,7 @@ export const authOptions: NextAuthOptions = {
                     return {
                         id: user.id,
                         name: user.name,
+                        username: user.username,
                         email: user.email,
                         image: user.image,
                     }
@@ -68,6 +71,8 @@ export const authOptions: NextAuthOptions = {
             // Initial sign in
             if (user) {
                 token.id = user.id
+                // @ts-expect-error adding custom field
+                token.username = user.username
 
                 // Fetch permissions for this user
                 const userPerms = await db
@@ -83,6 +88,7 @@ export const authOptions: NextAuthOptions = {
         session({ session, token }) {
             if (token.id) {
                 session.user.id = token.id as string
+                session.user.username = token.username as string
                 session.user.permissions = (token.permissions as string[]) || []
             }
             return session

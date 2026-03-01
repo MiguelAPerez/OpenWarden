@@ -71,6 +71,19 @@ export default function RegisterPage() {
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                            Username
+                        </label>
+                        <input
+                            name="username"
+                            type="text"
+                            required
+                            className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
+                            placeholder="johndoe123"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                             Email Address
                         </label>
                         <input

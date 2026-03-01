@@ -16,18 +16,18 @@ export default function LoginPage() {
         setError("")
 
         const formData = new FormData(e.currentTarget)
-        const email = formData.get("email") as string
+        const username = formData.get("username") as string
         const password = formData.get("password") as string
 
         try {
             const res = await signIn("credentials", {
                 redirect: false,
-                email,
+                username,
                 password,
             })
 
             if (res?.error) {
-                setError("Invalid email or password")
+                setError("Invalid username or password")
             } else {
                 router.push("/")
                 router.refresh()
@@ -57,14 +57,14 @@ export default function LoginPage() {
                 <form onSubmit={handleSubmit} className="space-y-5">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                            Email Address
+                            Username
                         </label>
                         <input
-                            name="email"
-                            type="email"
+                            name="username"
+                            type="text"
                             required
                             className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
-                            placeholder="you@example.com"
+                            placeholder="yourusername"
                         />
                     </div>
 

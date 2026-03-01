@@ -8,7 +8,7 @@ import { signOut } from "next-auth/react";
 interface UserProfileDropdownProps {
     user: {
         name?: string | null;
-        email?: string | null;
+        username?: string | null;
         image?: string | null;
     };
 }
@@ -52,7 +52,7 @@ export const UserProfileDropdown = ({ user }: UserProfileDropdownProps) => {
                 <div className="absolute right-0 mt-2 w-56 bg-background/95 backdrop-blur-xl border border-border shadow-2xl rounded-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="p-3 border-b border-border bg-foreground/[0.02]">
                         <p className="text-sm font-medium">{nameToDisplay}</p>
-                        <p className="text-xs text-foreground/50 truncate">{user.email || ""}</p>
+                        <p className="text-xs text-foreground/50 truncate">@{user.username || ""}</p>
                     </div>
 
                     <div className="p-1.5">

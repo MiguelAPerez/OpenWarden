@@ -63,6 +63,7 @@ async function seed() {
                 .insert(users)
                 .values({
                     name: "Admin User",
+                    username: "admin",
                     email: ADMIN_EMAIL,
                     password: hashedPassword,
                 })
