@@ -4,9 +4,8 @@ import { BenchmarkEntry } from "@/types/agent";
 export const EntryDetails = ({ selectedEntry }: {
     selectedEntry: BenchmarkEntry & {
         parsedMetrics: {
-            responseSize?: number;
             responseSizeBytes?: number;
-            keywordMatches?: { keyword: string, found: boolean }[]
+            expectationResults?: { type: string, value: string, found: boolean }[]
         } | null
     }
 }) => {
@@ -45,23 +44,30 @@ export const EntryDetails = ({ selectedEntry }: {
                                 <span className="font-mono text-sm">{selectedEntry.parsedMetrics.responseSizeBytes || 0} bytes</span>
                             </div>
                             <div className="p-3 rounded-xl glass border border-border/30">
-                                <span className="text-[10px] uppercase text-foreground/40 block mb-1">Keywords Found</span>
+                                <span className="text-[10px] uppercase text-foreground/40 block mb-1">Expectations Met</span>
                                 <span className="font-mono text-sm">
-                                    {(selectedEntry.parsedMetrics.keywordMatches || []).filter(m => m.found).length} / {(selectedEntry.parsedMetrics.keywordMatches || []).length}
+                                    {(selectedEntry.parsedMetrics.expectationResults || []).filter(m => m.found).length} / {(selectedEntry.parsedMetrics.expectationResults || []).length}
                                 </span>
                             </div>
                         </div>
 
-                        {selectedEntry.parsedMetrics.keywordMatches && selectedEntry.parsedMetrics.keywordMatches.length > 0 && (
+                        {selectedEntry.parsedMetrics.expectationResults && selectedEntry.parsedMetrics.expectationResults.length > 0 && (
                             <div className="space-y-2 mt-4">
-                                <span className="text-[10px] uppercase text-foreground/40">Keyword Matches Breakdown</span>
-                                <div className="flex flex-wrap gap-2">
-                                    {selectedEntry.parsedMetrics.keywordMatches.map((match, i) => (
-                                        <div key={i} className={`text-xs px-2 py-1 rounded font-mono border ${match.found
-                                            ? "bg-green-500/10 text-green-500 border-green-500/20"
-                                            : "bg-red-500/10 text-red-500 border-red-500/20"
+                                <span className="text-[10px] uppercase text-foreground/40">Results Breakdown</span>
+                                <div className="flex flex-col gap-2">
+                                    {selectedEntry.parsedMetrics.expectationResults.map((match, i) => (
+                                        <div key={i} className={`flex items-center justify-between p-2 rounded-lg border text-xs font-mono group transition-all ${match.found
+                                            ? "bg-green-500/5 text-green-500 border-green-500/20"
+                                            : "bg-red-500/5 text-red-500 border-red-500/20"
                                             }`}>
-                                            {match.keyword}: {match.found ? "✓" : "✗"}
+                                            <div className="flex items-center gap-3">
+                                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${match.found ? "bg-green-500/20" : "bg-red-500/20"
+                                                    }`}>
+                                                    {match.type}
+                                                </span>
+                                                <span className="truncate max-w-[200px]">{match.value}</span>
+                                            </div>
+                                            <span className="font-bold">{match.found ? "PASSED" : "FAILED"}</span>
                                         </div>
                                     ))}
                                 </div>

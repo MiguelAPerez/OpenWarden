@@ -33,7 +33,7 @@ export interface ContextGroup {
     name: string;
     description: string | null;
     category: string | null;
-    expectedKeywords: string | null; // stringified JSON
+    expectations: string | null; // stringified JSON
     weight: number | null;
     maxSentences: number | null;
     systemContext: string | null;

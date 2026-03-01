@@ -114,11 +114,12 @@ export const EvaluationQueue = ({
                                                                 {(() => {
                                                                     try {
                                                                         const m = JSON.parse(entry.metrics);
-                                                                        return m.keywordMatches?.filter((match: { found: boolean }) => match.found).length || 0;
+                                                                        const results = m.expectationResults || [];
+                                                                        return `${results.filter((res: { found: boolean }) => res.found).length} / ${results.length}`;
                                                                     } catch {
-                                                                        return 0;
+                                                                        return "0/0";
                                                                     }
-                                                                })()} matches
+                                                                })()} met
                                                             </span>
                                                         )}
                                                     </div>

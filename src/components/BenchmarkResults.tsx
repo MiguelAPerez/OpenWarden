@@ -38,9 +38,16 @@ export const BenchmarkResults = ({
             totalScore: number;
             totalDuration: number;
             totalResponseSize: number;
+            totalExpMet: number;
+            totalExpChecked: number;
             entryCount: number;
             runs: Set<string>;
-            categories: Record<string, { totalScore: number; entryCount: number }>;
+            categories: Record<string, {
+                totalScore: number;
+                entryCount: number;
+                totalExpMet: number;
+                totalExpChecked: number;
+            }>;
         }> = {};
 
         data.forEach(benchmark => {
@@ -53,6 +60,8 @@ export const BenchmarkResults = ({
                         totalScore: 0,
                         totalDuration: 0,
                         totalResponseSize: 0,
+                        totalExpMet: 0,
+                        totalExpChecked: 0,
                         entryCount: 0,
                         runs: new Set(),
                         categories: {}
@@ -62,11 +71,17 @@ export const BenchmarkResults = ({
                 modelStats[model].runs.add(benchmark.name);
                 modelStats[model].totalScore += entry.score;
                 if (entry.duration) modelStats[model].totalDuration += entry.duration;
+
                 try {
                     if (entry.metrics) {
                         const parsedMetrics = JSON.parse(entry.metrics);
                         if (parsedMetrics.responseSize) {
                             modelStats[model].totalResponseSize += parsedMetrics.responseSize;
+                        }
+                        if (parsedMetrics.expectationResults) {
+                            const met = parsedMetrics.expectationResults.filter((r: { found: boolean }) => r.found).length;
+                            modelStats[model].totalExpMet += met;
+                            modelStats[model].totalExpChecked += parsedMetrics.expectationResults.length;
                         }
                     }
                 } catch { }
@@ -74,8 +89,25 @@ export const BenchmarkResults = ({
 
                 const category = entry.category || "Uncategorized";
                 if (!modelStats[model].categories[category]) {
-                    modelStats[model].categories[category] = { totalScore: 0, entryCount: 0 };
+                    modelStats[model].categories[category] = {
+                        totalScore: 0,
+                        entryCount: 0,
+                        totalExpMet: 0,
+                        totalExpChecked: 0
+                    };
                 }
+
+                try {
+                    if (entry.metrics) {
+                        const parsedMetrics = JSON.parse(entry.metrics);
+                        if (parsedMetrics.expectationResults) {
+                            const met = parsedMetrics.expectationResults.filter((r: { found: boolean }) => r.found).length;
+                            modelStats[model].categories[category].totalExpMet += met;
+                            modelStats[model].categories[category].totalExpChecked += parsedMetrics.expectationResults.length;
+                        }
+                    }
+                } catch { }
+
                 modelStats[model].categories[category].totalScore += entry.score;
                 modelStats[model].categories[category].entryCount++;
             });
@@ -88,10 +120,14 @@ export const BenchmarkResults = ({
                 avgScore: Math.round(stats.totalScore / stats.entryCount),
                 avgDuration: Math.round(stats.totalDuration / stats.entryCount),
                 avgResponseSize: Math.round(stats.totalResponseSize / stats.entryCount),
+                totalExpMet: stats.totalExpMet,
+                totalExpChecked: stats.totalExpChecked,
                 evaluations: stats.entryCount,
                 categories: Object.entries(stats.categories).map(([cat, cStats]) => ({
                     category: cat,
                     avgScore: Math.round(cStats.totalScore / cStats.entryCount),
+                    totalExpMet: cStats.totalExpMet,
+                    totalExpChecked: cStats.totalExpChecked,
                     evaluations: cStats.entryCount
                 })).sort((a, b) => b.avgScore - a.avgScore)
             };
@@ -165,6 +201,12 @@ export const BenchmarkResults = ({
                                             <span>~{stat.avgResponseSize} chars</span>
                                         </>
                                     )}
+                                    {stat.totalExpChecked > 0 && (
+                                        <>
+                                            <span>•</span>
+                                            <span className="text-emerald-500/80 font-bold">{stat.totalExpMet}/{stat.totalExpChecked} expectations</span>
+                                        </>
+                                    )}
                                 </p>
                                 {stat.runs.length > 0 && (
                                     <p className="text-[10px] text-foreground/30 font-mono truncate mt-1" title={`Runs: ${stat.runs.join(', ')}`}>
@@ -211,6 +253,11 @@ export const BenchmarkResults = ({
                                         <div>
                                             <span className="text-sm font-bold uppercase tracking-wider">{cat.category}</span>
                                             <span className="text-[10px] text-foreground/40 ml-2">({cat.evaluations} tests)</span>
+                                            {cat.totalExpChecked > 0 && (
+                                                <span className="text-[10px] text-emerald-500/60 font-bold ml-2">
+                                                    [{cat.totalExpMet}/{cat.totalExpChecked} exp]
+                                                </span>
+                                            )}
                                         </div>
                                         <span className="font-mono font-bold text-sm group-hover:text-primary transition-colors">{cat.avgScore}%</span>
                                     </div>

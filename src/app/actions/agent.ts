@@ -154,7 +154,7 @@ export async function saveContextGroup(data: {
     description?: string;
     category?: string;
     weight?: number;
-    expectedKeywords?: string;
+    expectations?: string;
     maxSentences?: number;
     systemContext?: string;
     promptTemplate: string;
@@ -170,7 +170,7 @@ export async function saveContextGroup(data: {
         description: data.description,
         category: data.category,
         weight: data.weight,
-        expectedKeywords: data.expectedKeywords,
+        expectations: data.expectations,
         maxSentences: data.maxSentences,
         systemContext: data.systemContext,
         promptTemplate: data.promptTemplate,
@@ -428,7 +428,7 @@ export async function simulateBenchmarkStep(benchmarkId: string) {
 
     if (!cg) throw new Error("Context group not found");
 
-    const expectedKeywords = cg.expectedKeywords ? JSON.parse(cg.expectedKeywords) : [];
+    const expectations = cg.expectations ? JSON.parse(cg.expectations) : [];
     const prompt = cg.promptTemplate;
     const category = cg.category || "Uncategorized";
     const systemContext = cg.systemContext || "";
@@ -485,16 +485,41 @@ export async function simulateBenchmarkStep(benchmarkId: string) {
     const completedAt = new Date(startedAt.getTime() + duration);
 
     // Scoring logic
-    let matches = 0;
-    const matchDetails = expectedKeywords.map((keyword: string) => {
-        const found = output.toLowerCase().includes(keyword.toLowerCase());
-        if (found) matches++;
-        return { keyword, found };
+    let totalScore = 0;
+    const matchDetails = expectations.map((exp: { type: string; value: string }) => {
+        let found = false;
+        switch (exp.type) {
+            case "contains":
+                found = output.toLowerCase().includes(exp.value.toLowerCase());
+                break;
+            case "not_contains":
+                found = !output.toLowerCase().includes(exp.value.toLowerCase());
+                break;
+            case "regex":
+                try {
+                    const match = exp.value.match(/^\/(.*)\/([gimuy]*)$/);
+                    const regex = match ? new RegExp(match[1], match[2]) : new RegExp(exp.value, "i");
+                    found = regex.test(output);
+                } catch {
+                    found = false;
+                }
+                break;
+            case "exact":
+                found = output.trim().toLowerCase() === exp.value.trim().toLowerCase();
+                break;
+        }
+        if (found) totalScore += (100 / expectations.length);
+        return { ...exp, found };
     });
 
     // If an error occurred, score is 0. Otherwise calculate normally.
     const isError = output.startsWith("Error during generation");
-    const score = isError ? 0 : (expectedKeywords.length > 0 ? Math.round((matches / expectedKeywords.length) * 100) : 100);
+    let score = isError ? 0 : Math.round(totalScore);
+
+    if (cg.maxSentences) {
+        const sentenceCount = output.split(/[.!?]+\s/).filter(s => s.trim().length > 0).length;
+        if (sentenceCount > cg.maxSentences) score *= 0.5;
+    }
 
     db.update(benchmarkEntries)
         .set({
@@ -503,14 +528,15 @@ export async function simulateBenchmarkStep(benchmarkId: string) {
             duration,
             output,
             category,
-            score,
+            score: Math.round(score),
             prompt,
             systemContext,
             metrics: JSON.stringify({
-                keywordMatches: matchDetails,
+                expectationResults: matchDetails,
                 modelName: nextPendingEntry.model,
                 throughput: duration > 0 ? Math.round(output.length / (duration / 1000)) : 0,
                 responseSize: output.length,
+                responseSizeBytes: output.length,
                 error: isError
             })
         })
