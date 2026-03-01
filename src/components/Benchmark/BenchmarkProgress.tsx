@@ -1,0 +1,186 @@
+"use client";
+
+import React, { useEffect, useState } from "react";
+import { getBenchmarkProgress, simulateBenchmarkStep } from "@/app/actions/agent";
+import { Benchmark, BenchmarkEntry } from "@/types/agent";
+import { useRouter } from "next/navigation";
+import { getOllamaModels } from "@/app/actions/ollama";
+import { EvaluationQueue } from "./EvaluationQueue";
+import { EntryDetails } from "./EntryDetails";
+
+export const BenchmarkProgress = ({
+    initialBenchmarkId
+}: {
+    initialBenchmarkId: string | null
+}) => {
+    const [benchmark, setBenchmark] = useState<(Benchmark & { entries: BenchmarkEntry[] }) | null>(null);
+    const [modelCapabilities, setModelCapabilities] = useState<Record<string, string[]>>({});
+    const router = useRouter();
+
+    useEffect(() => {
+        async function loadCapabilities() {
+            try {
+                const models = await getOllamaModels();
+                const caps: Record<string, string[]> = {};
+                models.forEach(m => {
+                    try {
+                        if (m.details) {
+                            const parsed = JSON.parse(m.details);
+                            caps[m.name] = parsed.capabilities || [];
+                        }
+                    } catch { }
+                });
+                setModelCapabilities(caps);
+            } catch (err) {
+                console.error("Failed to load capabilities", err);
+            }
+        }
+        loadCapabilities();
+    }, []);
+
+    useEffect(() => {
+        if (!initialBenchmarkId) return;
+
+        const fetchData = async () => {
+            const data = await getBenchmarkProgress(initialBenchmarkId) as (Benchmark & { entries: BenchmarkEntry[] }) | null;
+            setBenchmark(prev => {
+                if (prev && prev.status === "running" && data?.status === "completed") {
+                    router.refresh(); // Refresh server state (e.g. results component)
+                }
+                return data;
+            });
+        };
+
+
+        fetchData();
+        const interval = setInterval(fetchData, 3000);
+        return () => clearInterval(interval);
+    }, [initialBenchmarkId, router]);
+
+    // Simulate progress if it's running
+    useEffect(() => {
+        if (benchmark?.status === "running") {
+            const timer = setTimeout(async () => {
+                const res = await simulateBenchmarkStep(benchmark.id);
+                if (res.finished) {
+                    // Refresh data
+                    const data = await getBenchmarkProgress(benchmark.id);
+                    setBenchmark(data as (Benchmark & { entries: BenchmarkEntry[] }) | null);
+                    router.refresh();
+                }
+
+            }, 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [benchmark, router]);
+
+    const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
+    const [collapsedModels, setCollapsedModels] = useState<Record<string, boolean>>({});
+
+    const toggleModelCollapse = (modelName: string) => {
+        setCollapsedModels(prev => ({
+            ...prev,
+            [modelName]: prev[modelName] === false ? true : false
+        }));
+    };
+
+    const selectedEntry = React.useMemo(() => {
+        if (!benchmark) return null;
+        const entry = benchmark.entries.find(e => e.id === selectedEntryId);
+        if (!entry) return null;
+
+        // Pre-parse metrics if they exist
+        let parsedMetrics = null;
+        if (entry.metrics) {
+            try {
+                parsedMetrics = JSON.parse(entry.metrics);
+            } catch (e) {
+                console.error("Failed to parse metrics", e);
+            }
+        }
+
+        return { ...entry, parsedMetrics };
+    }, [benchmark, selectedEntryId]);
+
+    if (!benchmark && initialBenchmarkId) {
+        return <div className="p-8 text-center text-foreground/40 italic">Loading benchmark progress...</div>;
+    }
+
+    if (!benchmark) {
+        return (
+            <div className="h-full flex flex-col items-center justify-center p-12 glass border-2 border-dashed border-border/30 rounded-3xl text-center space-y-4">
+                <div className="w-16 h-16 rounded-full bg-foreground/5 flex items-center justify-center">
+                    <span className="text-3xl grayscale">📊</span>
+                </div>
+                <div className="space-y-1">
+                    <h3 className="text-lg font-semibold text-foreground/60">No Active Benchmark</h3>
+                    <p className="text-sm text-foreground/20 max-w-xs mx-auto">
+                        Select or create a run in the &quot;Runs&quot; tab to see details here.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    const progress = (benchmark.completedEntries / benchmark.totalEntries) * 100;
+
+    return (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="lg:col-span-2 space-y-8">
+                <div className="glass p-8 rounded-3xl border border-primary/20 shadow-2xl bg-gradient-to-br from-background/40 to-primary/5">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-3">
+                                <span className={`w-3 h-3 rounded-full animate-pulse ${benchmark.status === "running" ? "bg-green-500 shadow-green-500/50" : "bg-primary shadow-primary/50"
+                                    }`} />
+                                <h2 className="text-2xl font-bold text-foreground/90">{benchmark.name}</h2>
+                            </div>
+                            <p className="text-sm text-foreground/40 font-mono uppercase tracking-widest pl-6">
+                                ID: {benchmark.id.slice(0, 8)}... • Status: {benchmark.status}
+                            </p>
+                        </div>
+                        <div className="text-right px-6 py-4 glass bg-background/40 rounded-2xl border border-border/50">
+                            <span className="text-3xl font-black text-primary font-mono">{Math.round(progress)}%</span>
+                            <p className="text-[10px] font-bold uppercase tracking-tighter text-foreground/30">Total Progress</p>
+                        </div>
+                    </div>
+
+                    <div className="w-full bg-foreground/5 h-4 rounded-full overflow-hidden mb-4 p-1 border border-border/30">
+                        <div
+                            className="h-full bg-gradient-to-r from-primary via-primary/80 to-primary/40 rounded-full transition-all duration-1000 shadow-lg shadow-primary/20"
+                            style={{ width: `${progress}%` }}
+                        />
+                    </div>
+                    <div className="flex justify-between px-2">
+                        <span className="text-xs font-bold text-foreground/30 uppercase tracking-widest">
+                            {benchmark.completedEntries} / {benchmark.totalEntries} Evaluated
+                        </span>
+                    </div>
+                </div>
+
+                <EvaluationQueue
+                    benchmark={benchmark}
+                    collapsedModels={collapsedModels}
+                    toggleModelCollapse={toggleModelCollapse}
+                    selectedEntryId={selectedEntryId}
+                    setSelectedEntryId={setSelectedEntryId}
+                    modelCapabilities={modelCapabilities}
+                />
+            </div>
+
+            {/* Sticky detailed view column */}
+            <div className="lg:col-span-1">
+                <div className="sticky top-8">
+                    {selectedEntry ? (
+                        <EntryDetails selectedEntry={selectedEntry} />
+                    ) : (
+                        <div className="h-full min-h-[400px] flex flex-col items-center justify-center p-12 glass border border-dashed border-border/30 rounded-3xl text-center space-y-4 opacity-50">
+                            <span className="text-4xl grayscale">📄</span>
+                            <p className="text-sm text-foreground/40">Select an execution from the queue to view its results.</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};

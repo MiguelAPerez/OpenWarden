@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { ContextGroupManager } from "./ContextGroupManager";
 import { BenchmarkRunManager } from "./BenchmarkRunManager";
-import { BenchmarkProgress } from "./BenchmarkProgress";
+import { BenchmarkProgress } from "./Benchmark/BenchmarkProgress";
 import { BenchmarkResults } from "./BenchmarkResults";
 import { ContextGroup, Skill, Benchmark, BenchmarkRun, BenchmarkEntry } from "@/types/agent";
 
