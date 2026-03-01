@@ -93,3 +93,35 @@ export const giteaConfigurations = sqliteTable("gitea_configuration", {
     token: text("token").notNull(),
     updatedAt: integer("updatedAt", { mode: "timestamp_ms" }).notNull(),
 })
+
+export const repositories = sqliteTable("repository", {
+    id: text("id")
+        .primaryKey()
+        .$defaultFn(() => crypto.randomUUID()),
+    userId: text("userId")
+        .notNull()
+        .references(() => users.id, { onDelete: "cascade" }),
+    source: text("source").notNull(), // 'gitea', 'github'
+    externalId: text("externalId").notNull(),
+    name: text("name").notNull(),
+    fullName: text("fullName").notNull(),
+    description: text("description"),
+    url: text("url").notNull(),
+    stars: integer("stars").default(0),
+    forks: integer("forks").default(0),
+    language: text("language"),
+    updatedAt: integer("updatedAt", { mode: "timestamp_ms" }).notNull(),
+    cachedAt: integer("cachedAt", { mode: "timestamp_ms" }).notNull(),
+})
+
+export const repositoryMetadata = sqliteTable("repository_metadata", {
+    id: text("id")
+        .primaryKey()
+        .$defaultFn(() => crypto.randomUUID()),
+    repositoryId: text("repositoryId")
+        .notNull()
+        .references(() => repositories.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    value: text("value").notNull(),
+    updatedAt: integer("updatedAt", { mode: "timestamp_ms" }).notNull(),
+})

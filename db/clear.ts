@@ -1,5 +1,5 @@
 import { db } from "./index"
-import { users, accounts, sessions, verificationTokens, permissions, userPermissions, giteaConfigurations } from "./schema"
+import { users, accounts, sessions, verificationTokens, permissions, userPermissions, giteaConfigurations, repositories, repositoryMetadata } from "./schema"
 
 async function clear() {
     console.log("🧹 Clearing database...")
@@ -7,6 +7,12 @@ async function clear() {
     try {
         // Order matters if there are foreign key constraints without cascade (though schema has onDelete: "cascade")
         // We'll delete from junction/child tables first just to be safe, then the parents.
+
+        console.log("- Clearing repository metadata...")
+        await db.delete(repositoryMetadata)
+
+        console.log("- Clearing repositories...")
+        await db.delete(repositories)
 
         console.log("- Clearing user permissions...")
         await db.delete(userPermissions)
