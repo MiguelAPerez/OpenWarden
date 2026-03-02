@@ -119,6 +119,7 @@ async function seed() {
                 maxSentences: tc.maxSentences || null,
                 systemContext: tc.systemContext || null,
                 promptTemplate: tc.prompt,
+                systemPromptVariations: tc.systemPromptVariations ? JSON.stringify(tc.systemPromptVariations) : null,
                 updatedAt: new Date(),
             }
 

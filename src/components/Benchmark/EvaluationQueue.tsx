@@ -109,6 +109,28 @@ export const EvaluationQueue = ({
                                                 <div className="space-y-0.5">
                                                     <div className="flex items-center gap-2">
                                                         <span className="font-bold text-foreground/80">{entry.category || "Uncategorized"}</span>
+                                                        {(() => {
+                                                            try {
+                                                                const m = JSON.parse(entry.metrics || "{}");
+                                                                if (m.variationName) {
+                                                                    return (
+                                                                        <span className="text-[10px] bg-purple-500/10 text-purple-500 px-2 py-0.5 rounded-md font-black uppercase tracking-tighter">
+                                                                            {m.variationName}
+                                                                        </span>
+                                                                    );
+                                                                }
+                                                                // Also check pending metrics if it's preparing/pending
+                                                                const pm = JSON.parse(entry.metrics || "{}");
+                                                                if (pm.pendingVariation) {
+                                                                    return (
+                                                                        <span className="text-[10px] bg-purple-500/10 text-purple-500 px-2 py-0.5 rounded-md font-black uppercase tracking-tighter">
+                                                                            {pm.pendingVariation.name}
+                                                                        </span>
+                                                                    );
+                                                                }
+                                                            } catch { }
+                                                            return null;
+                                                        })()}
                                                     </div>
                                                     <div className="flex items-center gap-2">
                                                         <span className={`text-[10px] font-bold uppercase tracking-widest ${entry.status === "running" ? "text-primary animate-pulse" :

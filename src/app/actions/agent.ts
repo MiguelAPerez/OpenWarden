@@ -2,7 +2,7 @@
 
 import { db } from "@/../db";
 import { agentConfigurations, skills, tools, contextGroups, benchmarkRuns, benchmarks, benchmarkEntries } from "@/../db/schema";
-import { eq, desc, and, or } from "drizzle-orm";
+import { eq, desc, and, or, inArray } from "drizzle-orm";
 import { getOllamaConfig } from "./ollama";
 
 import { getServerSession } from "next-auth/next";
@@ -159,7 +159,8 @@ export async function saveContextGroup(data: {
     systemContext?: string;
     promptTemplate: string;
     skillIds?: string;
-    toolIds?: string
+    toolIds?: string;
+    systemPromptVariations?: string;
 }) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) throw new Error("Unauthorized");
@@ -176,6 +177,7 @@ export async function saveContextGroup(data: {
         promptTemplate: data.promptTemplate,
         skillIds: data.skillIds,
         toolIds: data.toolIds,
+        systemPromptVariations: data.systemPromptVariations,
         updatedAt: now,
     };
 
@@ -264,6 +266,25 @@ export async function triggerBenchmark(runId: string) {
     const models = JSON.parse(run.models) as string[];
     const contextGroupIds = JSON.parse(run.contextGroupIds) as string[];
 
+    // Fetch all context groups to calculate total entries and get variations
+    const cgs = db.select().from(contextGroups).where(inArray(contextGroups.id, contextGroupIds)).all();
+    const cgMap = new Map(cgs.map(cg => [cg.id, cg]));
+
+    let totalEntries = 0;
+    for (const cgId of contextGroupIds) {
+        const cg = cgMap.get(cgId);
+        if (cg && cg.systemPromptVariations) {
+            try {
+                const variations = JSON.parse(cg.systemPromptVariations);
+                totalEntries += models.length * Math.max(1, variations.length);
+            } catch {
+                totalEntries += models.length;
+            }
+        } else {
+            totalEntries += models.length;
+        }
+    }
+
     const benchmarkId = crypto.randomUUID();
     const now = new Date();
 
@@ -276,7 +297,7 @@ export async function triggerBenchmark(runId: string) {
             name: run.name,
             status: "running",
             startedAt: now,
-            totalEntries: models.length * contextGroupIds.length,
+            totalEntries: totalEntries, // Corrected to use the computed totalEntries
             completedEntries: 0,
         })
         .run();
@@ -284,14 +305,39 @@ export async function triggerBenchmark(runId: string) {
     // Create entries
     for (const model of models) {
         for (const cgId of contextGroupIds) {
-            db.insert(benchmarkEntries)
-                .values({
-                    benchmarkId: benchmarkId,
-                    model: model,
-                    contextGroupId: cgId,
-                    status: "pending",
-                })
-                .run();
+            const cg = cgMap.get(cgId);
+            let variations: { id: string; name: string; systemPrompt: string }[] = [];
+
+            if (cg && cg.systemPromptVariations) {
+                try {
+                    variations = JSON.parse(cg.systemPromptVariations);
+                } catch { }
+            }
+
+            if (variations.length > 0) {
+                for (const variation of variations) {
+                    db.insert(benchmarkEntries)
+                        .values({
+                            benchmarkId: benchmarkId,
+                            model: model,
+                            contextGroupId: cgId,
+                            status: "pending",
+                            // Pass the variation info in contextGroupId or metrics?
+                            // Let's use metrics JSON to store the variation metadata so it's transparent.
+                            metrics: JSON.stringify({ variation })
+                        })
+                        .run();
+                }
+            } else {
+                db.insert(benchmarkEntries)
+                    .values({
+                        benchmarkId: benchmarkId,
+                        model: model,
+                        contextGroupId: cgId,
+                        status: "pending",
+                    })
+                    .run();
+            }
         }
     }
 
@@ -424,7 +470,20 @@ export async function simulateBenchmarkStep(benchmarkId: string) {
         const expectations = cg.expectations ? JSON.parse(cg.expectations) : [];
         const prompt = cg.promptTemplate;
         const category = cg.category || "Uncategorized";
-        const systemContext = cg.systemContext || "";
+
+        // Extract variation from pending metrics if available
+        let systemContext = cg.systemContext || "";
+        let variationName = null;
+
+        if (nextPreparingEntry.metrics) {
+            try {
+                const pending = JSON.parse(nextPreparingEntry.metrics);
+                if (pending.variation) {
+                    systemContext = pending.variation.systemPrompt;
+                    variationName = pending.variation.name;
+                }
+            } catch { }
+        }
 
         const startedAt = new Date();
         db.update(benchmarkEntries)
@@ -529,7 +588,8 @@ export async function simulateBenchmarkStep(benchmarkId: string) {
                     throughput: duration > 0 ? Math.round(output.length / (duration / 1000)) : 0,
                     responseSize: output.length,
                     responseSizeBytes: output.length,
-                    error: isError
+                    error: isError,
+                    variationName // Include variation name for display
                 })
             })
             .where(eq(benchmarkEntries.id, nextPreparingEntry.id))

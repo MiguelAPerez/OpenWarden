@@ -40,6 +40,7 @@ export interface ContextGroup {
     promptTemplate: string;
     skillIds: string | null; // stringified JSON
     toolIds: string | null;  // stringified JSON
+    systemPromptVariations?: string | null; // JSON string
     updatedAt: Date;
 }
 

@@ -5,7 +5,8 @@ export const EntryDetails = ({ selectedEntry }: {
     selectedEntry: BenchmarkEntry & {
         parsedMetrics: {
             responseSizeBytes?: number;
-            expectationResults?: { type: string, value: string, found: boolean }[]
+            expectationResults?: { type: string, value: string, found: boolean }[];
+            variationName?: string;
         } | null
     }
 }) => {
@@ -15,6 +16,11 @@ export const EntryDetails = ({ selectedEntry }: {
                 <div className="space-y-1 block max-w-full">
                     <h3 className="text-xl font-bold font-mono text-primary flex items-center gap-2">
                         <span className="text-2xl">📄</span> {selectedEntry.category} Test
+                        {selectedEntry.parsedMetrics?.variationName && (
+                            <span className="text-[10px] bg-purple-500/10 text-purple-500 px-2 py-0.5 rounded-md font-black uppercase tracking-tighter">
+                                {selectedEntry.parsedMetrics.variationName}
+                            </span>
+                        )}
                     </h3>
                     <p className="text-xs text-foreground/60 font-mono break-words leading-relaxed">
                         Prompt: &quot;{selectedEntry.prompt?.substring(0, 100)}...&quot;

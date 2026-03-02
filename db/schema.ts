@@ -207,9 +207,10 @@ export const contextGroups = sqliteTable("context_group", {
     maxSentences: integer("maxSentences"),
     systemContext: text("systemContext"),
     promptTemplate: text("promptTemplate").notNull(),
-    skillIds: text("skillIds"), // JSON array of skill IDs
-    toolIds: text("toolIds"),   // JSON array of tool IDs
-    updatedAt: integer("updatedAt", { mode: "timestamp_ms" }).notNull(),
+    skillIds: text("skillIds"), // JSON string array
+    toolIds: text("toolIds"),   // JSON string array
+    systemPromptVariations: text("systemPromptVariations"), // JSON string array of { id, name, systemPrompt }
+    updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 })
 
 export const benchmarkRuns = sqliteTable("benchmark_run", {

@@ -54,9 +54,15 @@ export const BenchmarkResults = ({
             benchmark.entries.forEach(entry => {
                 if (entry.status !== "completed" || entry.score === null) return;
 
-                const model = entry.model;
-                if (!modelStats[model]) {
-                    modelStats[model] = {
+                let variationName = null;
+                try {
+                    const m = JSON.parse(entry.metrics || "{}");
+                    variationName = m.variationName || null;
+                } catch { }
+
+                const statsKey = variationName ? `${entry.model} (${variationName})` : entry.model;
+                if (!modelStats[statsKey]) {
+                    modelStats[statsKey] = {
                         totalScore: 0,
                         totalDuration: 0,
                         totalResponseSize: 0,
@@ -68,28 +74,28 @@ export const BenchmarkResults = ({
                     };
                 }
 
-                modelStats[model].runs.add(benchmark.name);
-                modelStats[model].totalScore += entry.score;
-                if (entry.duration) modelStats[model].totalDuration += entry.duration;
+                modelStats[statsKey].runs.add(benchmark.name);
+                modelStats[statsKey].totalScore += entry.score;
+                if (entry.duration) modelStats[statsKey].totalDuration += entry.duration;
 
                 try {
                     if (entry.metrics) {
                         const parsedMetrics = JSON.parse(entry.metrics);
                         if (parsedMetrics.responseSize) {
-                            modelStats[model].totalResponseSize += parsedMetrics.responseSize;
+                            modelStats[statsKey].totalResponseSize += parsedMetrics.responseSize;
                         }
                         if (parsedMetrics.expectationResults) {
                             const met = parsedMetrics.expectationResults.filter((r: { found: boolean }) => r.found).length;
-                            modelStats[model].totalExpMet += met;
-                            modelStats[model].totalExpChecked += parsedMetrics.expectationResults.length;
+                            modelStats[statsKey].totalExpMet += met;
+                            modelStats[statsKey].totalExpChecked += parsedMetrics.expectationResults.length;
                         }
                     }
                 } catch { }
-                modelStats[model].entryCount++;
+                modelStats[statsKey].entryCount++;
 
                 const category = entry.category || "Uncategorized";
-                if (!modelStats[model].categories[category]) {
-                    modelStats[model].categories[category] = {
+                if (!modelStats[statsKey].categories[category]) {
+                    modelStats[statsKey].categories[category] = {
                         totalScore: 0,
                         entryCount: 0,
                         totalExpMet: 0,
@@ -102,14 +108,14 @@ export const BenchmarkResults = ({
                         const parsedMetrics = JSON.parse(entry.metrics);
                         if (parsedMetrics.expectationResults) {
                             const met = parsedMetrics.expectationResults.filter((r: { found: boolean }) => r.found).length;
-                            modelStats[model].categories[category].totalExpMet += met;
-                            modelStats[model].categories[category].totalExpChecked += parsedMetrics.expectationResults.length;
+                            modelStats[statsKey].categories[category].totalExpMet += met;
+                            modelStats[statsKey].categories[category].totalExpChecked += parsedMetrics.expectationResults.length;
                         }
                     }
                 } catch { }
 
-                modelStats[model].categories[category].totalScore += entry.score;
-                modelStats[model].categories[category].entryCount++;
+                modelStats[statsKey].categories[category].totalScore += entry.score;
+                modelStats[statsKey].categories[category].entryCount++;
             });
         });
 
