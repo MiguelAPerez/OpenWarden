@@ -163,30 +163,11 @@ export async function triggerBenchmark(runId: string) {
         : [];
     const spMap = new Map(systemPromptsData.map(sp => [sp.id, sp]));
 
-    let totalEntries = 0;
-    for (const model of models) {
-        for (const cgId of contextGroupIds) {
-            const cg = cgMap.get(cgId);
-            if (!cg) continue;
-
-            if (resolvedSystemPromptsList.length > 0) {
-                totalEntries += resolvedSystemPromptsList.length;
-            } else {
-                let legacyVariationsCount = 0;
-                if (cg.systemPromptVariations) {
-                    try {
-                        const variations = JSON.parse(cg.systemPromptVariations);
-                        legacyVariationsCount = Array.isArray(variations) ? variations.length : 0;
-                    } catch { }
-                }
-                totalEntries += Math.max(1, legacyVariationsCount);
-            }
-        }
-    }
-
+    let actualTotalEntries = 0;
     const benchmarkId = crypto.randomUUID();
     const now = new Date();
 
+    // Insert initial benchmark record with 0 totalEntries (we will update it later)
     db.insert(benchmarks)
         .values({
             id: benchmarkId,
@@ -195,7 +176,7 @@ export async function triggerBenchmark(runId: string) {
             name: run.name,
             status: "running",
             startedAt: now,
-            totalEntries: totalEntries,
+            totalEntries: 0,
             completedEntries: 0,
         })
         .run();
@@ -244,6 +225,7 @@ export async function triggerBenchmark(runId: string) {
                             metrics: JSON.stringify({ variationName: sp?.name || "System Prompt" })
                         })
                         .run();
+                    actualTotalEntries++;
                 }
             } else {
                 let manualVariations: { id: string; name: string; systemPrompt: string }[] = [];
@@ -264,6 +246,7 @@ export async function triggerBenchmark(runId: string) {
                                 metrics: JSON.stringify({ variation })
                             })
                             .run();
+                        actualTotalEntries++;
                     }
                 } else {
                     // Fallback to RUN prompts
@@ -280,6 +263,7 @@ export async function triggerBenchmark(runId: string) {
                                     metrics: JSON.stringify({ variationName: sp?.name || "System Prompt" })
                                 })
                                 .run();
+                            actualTotalEntries++;
                         }
                     } else {
                         db.insert(benchmarkEntries)
@@ -290,11 +274,18 @@ export async function triggerBenchmark(runId: string) {
                                 status: "pending",
                             })
                             .run();
+                        actualTotalEntries++;
                     }
                 }
             }
         }
     }
+
+    // Update the benchmark with the actual total count
+    db.update(benchmarks)
+        .set({ totalEntries: actualTotalEntries })
+        .where(eq(benchmarks.id, benchmarkId))
+        .run();
 
     revalidatePath("/evaluation-lab");
     return benchmarkId;

@@ -5,7 +5,7 @@ import { Benchmark, BenchmarkEntry } from "@/types/agent";
 import { getOllamaModels } from "@/app/actions/ollama";
 import { clearBenchmarkData } from "@/app/actions/benchmarks";
 
-type ViewType = "models" | "categories" | "variations";
+type ViewType = "models" | "variations";
 
 export const BenchmarkResults = ({
     data
@@ -77,14 +77,10 @@ export const BenchmarkResults = ({
                     key = entry.model;
                     label = entry.model;
                     subLabel = `${entry.model} evaluations`;
-                } else if (currentView === "categories") {
-                    key = entry.category || "Uncategorized";
-                    label = key;
-                    subLabel = `Category performance`;
                 } else if (currentView === "variations") {
-                    key = variationName ? `${entry.model} (${variationName})` : entry.model;
-                    label = entry.model;
-                    subLabel = variationName || "Default Prompt";
+                    key = variationName || "Default Prompt";
+                    label = key;
+                    subLabel = entry.model;
                 }
 
                 if (!stats[key]) {
@@ -122,8 +118,13 @@ export const BenchmarkResults = ({
                 } catch { }
                 stats[key].entryCount++;
 
-                // Details breakdown (by category for models/variations, by model for categories)
-                const detailKey = currentView === "categories" ? entry.model : (entry.category || "Uncategorized");
+                // Details breakdown (by category for models and variations)
+                let detailKey = "";
+                if (currentView === "models") {
+                    detailKey = entry.category || "Uncategorized";
+                } else if (currentView === "variations") {
+                    detailKey = entry.category || "Uncategorized";
+                }
                 if (!stats[key].details[detailKey]) {
                     stats[key].details[detailKey] = {
                         label: detailKey,
@@ -150,17 +151,27 @@ export const BenchmarkResults = ({
             });
         });
 
-        return Object.values(stats).map(s => ({
-            ...s,
-            avgScore: Math.round(s.totalScore / s.entryCount),
-            avgDuration: Math.round(s.totalDuration / s.entryCount),
-            avgResponseSize: Math.round(s.totalResponseSize / s.entryCount),
-            runs: Array.from(s.runs),
-            details: Object.values(s.details).map(d => ({
+        return Object.values(stats).map(s => {
+            const sortedDetails = Object.values(s.details).map(d => ({
                 ...d,
                 avgScore: Math.round(d.totalScore / d.entryCount)
-            })).sort((a, b) => b.avgScore - a.avgScore)
-        })).sort((a, b) => b.avgScore - a.avgScore);
+            })).sort((a, b) => b.avgScore - a.avgScore);
+
+            let subLabel = s.subLabel;
+            if (currentView === "variations" && sortedDetails.length > 0) {
+                subLabel = `Winner: ${sortedDetails[0].label}`;
+            }
+
+            return {
+                ...s,
+                subLabel,
+                avgScore: Math.round(s.totalScore / s.entryCount),
+                avgDuration: Math.round(s.totalDuration / s.entryCount),
+                avgResponseSize: Math.round(s.totalResponseSize / s.entryCount),
+                runs: Array.from(s.runs),
+                details: sortedDetails
+            };
+        }).sort((a, b) => b.avgScore - a.avgScore);
     }, [data, currentView]);
 
     const [showConfirmReset, setShowConfirmReset] = useState(false);
@@ -199,7 +210,7 @@ export const BenchmarkResults = ({
             {/* Header & View Switcher */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex gap-2 p-1 bg-foreground/5 rounded-xl border border-border/50 w-fit">
-                    {(["models", "categories", "variations"] as ViewType[]).map(view => (
+                    {(["models", "variations"] as ViewType[]).map(view => (
                         <button
                             key={view}
                             onClick={() => {
@@ -211,7 +222,7 @@ export const BenchmarkResults = ({
                                 : "text-foreground/40 hover:text-foreground/60 hover:bg-foreground/5"
                                 }`}
                         >
-                            {view}
+                            {view === "variations" ? "Personas" : view}
                         </button>
                     ))}
                 </div>
@@ -258,8 +269,7 @@ export const BenchmarkResults = ({
                 <div className="space-y-6">
                     <div className="space-y-1">
                         <h2 className="text-xl font-bold bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent">
-                            {currentView === "models" ? "Model Leaderboard" :
-                                currentView === "categories" ? "Category Performance" : "Variation Leaderboard"}
+                            {currentView === "models" ? "Model Leaderboard" : "Persona Leaderboard"}
                         </h2>
                         <p className="text-sm text-foreground/40">Aggregated from {data.length} completed run(s).</p>
                     </div>
@@ -285,7 +295,7 @@ export const BenchmarkResults = ({
                                 <div className="flex-1 min-w-0">
                                     <h3 className="font-bold text-lg truncate group-hover:text-primary transition-colors flex items-center gap-2">
                                         {stat.label}
-                                        {currentView !== "categories" && (modelCapabilities[stat.label]?.includes("tools") || modelCapabilities[stat.label]?.includes("thinking")) && (
+                                        {currentView === "models" && (modelCapabilities[stat.label]?.includes("tools") || modelCapabilities[stat.label]?.includes("thinking")) && (
                                             <span className="flex gap-1.5 ml-1" title="Model Capabilities">
                                                 {modelCapabilities[stat.label].includes("tools") && <span className="text-[10px] w-6 h-5 flex items-center justify-center rounded bg-blue-500/10 text-blue-500 border border-blue-500/20" title="Supports Tools">🔧</span>}
                                                 {modelCapabilities[stat.label].includes("thinking") && <span className="text-[10px] w-6 h-5 flex items-center justify-center rounded bg-purple-500/10 text-purple-600 border border-purple-500/20" title="Has Thinking Phase">🧠</span>}
@@ -347,8 +357,11 @@ export const BenchmarkResults = ({
                                 <h3 className="text-xl font-bold font-mono text-primary flex items-center gap-2">
                                     <span className="text-2xl">🔍</span> {selectedId}
                                 </h3>
-                                <p className="text-sm text-foreground/60">
-                                    {currentView === "categories" ? "Model Performance Breakdown" : "Category Performance Breakdown"}
+                                <p className="text-sm font-bold text-primary/80 uppercase tracking-wider">
+                                    Category Performance Breakdown
+                                </p>
+                                <p className="text-[10px] text-foreground/40 italic">
+                                    Performance across categories
                                 </p>
                             </div>
 
