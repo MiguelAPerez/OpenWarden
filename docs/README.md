@@ -17,8 +17,9 @@ This project is a premium Next.js application bootstrapped with the `nextjs_app_
   - `globals.css`: Tailwind configuration and custom CSS variables for themes.
   - `api/`: API routes for backend logic.
 - `docs/`: Comprehensive project documentation.
-  - `authentication.md`: Details the NextAuth permissions.
-  - `orm.md`: Details the Drizzle database schema, seeder process, and DB clearing instructions.
+  - [authentication](authentication.md): Details the NextAuth permissions.
+  - [orm](orm.md): Details the Drizzle database schema, seeder process, and DB clearing instructions.
+  - [context-groups](context-groups.md): Explains the benchmarking evaluation system and test case structures.
 
 ## Running Locally
 

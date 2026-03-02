@@ -1,33 +1,34 @@
 # Coding Agent
 
-A simple repository manager for your coding projects. It used to make simple changes and updates to your repositories. It can also be used for simple reviews and code analysis.
+A simple repository manager for your coding projects. Its used to make quick updates or submit simple reviews for your pull requests. Its focused
+around self-hosted tools and AI models.
 
-## Requirements
+## Features
 
-- Node.js 22.10.0 or higher
-- npm 10.2.4 or higher
-- Git 2.42.0 or higher
-- Ollama 0.17.0 or higher
+- [ ] Repository Management (create, read, update)
+- [ ] Code Review (based on skills and context)
+- [ ] Code Lookup
+- [ ] Code Update
+- [ ] Code Generation
+- [ ] Prompt&Model Evaluation
 
-## Getting Started
+## Usage
 
-1. Install dependencies:
+Start container:
 
-   ```bash
-   npm install
-   ```
+```bash
+docker run -it --rm \
+    -v $DATASTORE:/data \
+    -v $DATABASE:/sqlite.db \
+    coding-agent
+```
 
-2. Run the development server:
-
-   ```bash
-   npm run dev
-   ```
-
-3. Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Once started login and set your configurations: `http://localhost:8000`
+By default the username/password is `admin/admin`
 
 ## Contribution
 
-To learn more about this project see [README.md](./docs/)
+To learn more about this project see [README.md](./docs/README.md)
 
 ## License
 
