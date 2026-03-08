@@ -15,23 +15,38 @@ export default function DocsChatLayout({ repositories }: DocsChatLayoutProps) {
     const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
 
     React.useEffect(() => {
-        const hash = window.location.hash.replace(/^#/, "");
-        if (hash) {
+        const syncFromHash = () => {
+            const hash = window.location.hash.replace(/^#/, "");
             const params = new URLSearchParams(hash);
             const doc = params.get("doc");
             const page = params.get("page");
+
             if (doc) {
                 const repo = repositories.find(r => r.name === doc || r.id === doc);
-                if (repo && (!selectedRepo || selectedRepo.id !== repo.id)) {
-                    setSelectedRepo(repo);
+                if (repo) {
+                    setSelectedRepo(prev => (prev?.id === repo.id) ? prev : repo);
+                } else {
+                    setSelectedRepo(prev => prev !== null ? null : prev);
                 }
+            } else {
+                setSelectedRepo(prev => prev !== null ? null : prev);
             }
-            if (page && selectedFilePath !== page) {
-                setSelectedFilePath(page);
+
+            if (page) {
+                setSelectedFilePath(prev => (prev === page) ? prev : page);
+            } else {
+                setSelectedFilePath(prev => prev !== null ? null : prev);
             }
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [repositories]); // Run once on mount to restore from URL
+        };
+
+        // Run once on mount
+        syncFromHash();
+        
+        // Listen to hash changes (for back/forward button clicks)
+        window.addEventListener("hashchange", syncFromHash);
+        
+        return () => window.removeEventListener("hashchange", syncFromHash);
+    }, [repositories]);
 
     React.useEffect(() => {
         if (!selectedRepo) return;
@@ -42,7 +57,8 @@ export default function DocsChatLayout({ repositories }: DocsChatLayoutProps) {
         }
         const newHash = `#${params.toString()}`;
         if (window.location.hash !== newHash) {
-            window.history.replaceState(null, "", newHash);
+            // Push state to browser history stack so the user can go "back"
+            window.history.pushState(null, "", newHash);
         }
     }, [selectedRepo, selectedFilePath]);
 

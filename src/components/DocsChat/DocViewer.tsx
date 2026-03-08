@@ -78,6 +78,43 @@ export default function DocViewer({ selectedRepo, selectedFilePath, isChatting, 
         }
     };
 
+    const markdownComponents = React.useMemo(() => ({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        code(props: any) {
+            const { children, className, ...rest } = props;
+            const match = /language-(\w+)/.exec(className || '');
+
+            // Extract ref and node from rest to avoid passing them down
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
+            const { ref, node, ...safeRest } = rest as any;
+            
+            if (match && match[1] === 'mermaid') {
+                return <MermaidDisplay chart={String(children).replace(/\n$/, '')} />;
+            }
+
+            return match ? (
+                <div className="rounded-md overflow-hidden my-4 border border-border/50" dir="ltr">
+                    <div className="bg-foreground/5 px-4 py-1.5 text-xs text-foreground/50 border-b border-border/50 font-mono flex items-center justify-between">
+                        <span>{match[1]}</span>
+                    </div>
+                    <SyntaxHighlighter
+                        {...safeRest}
+                        PreTag="div"
+                        language={match[1]}
+                        style={vscDarkPlus}
+                        customStyle={{ margin: 0, padding: '1rem', background: 'var(--card)' }}
+                    >
+                        {String(children).replace(/\n$/, '')}
+                    </SyntaxHighlighter>
+                </div>
+            ) : (
+                <code {...rest} className={`${className} bg-foreground/10 px-1.5 py-0.5 rounded text-sm`}>
+                    {children}
+                </code>
+            )
+        }
+    }), []);
+    
     if (!isChatting && !selectedFilePath) {
         return (
             <div className="flex-1 flex flex-col items-center justify-center p-8">
@@ -160,41 +197,7 @@ export default function DocViewer({ selectedRepo, selectedFilePath, isChatting, 
                     <article className="prose prose-neutral dark:prose-invert max-w-4xl mx-auto pb-20 prose-pre:p-0 prose-pre:bg-transparent">
                         <ReactMarkdown
                             remarkPlugins={[remarkGfm]}
-                            components={{
-                                code(props) {
-                                    const { children, className, ...rest } = props;
-                                    const match = /language-(\w+)/.exec(className || '');
-
-                                    // Extract ref and node from rest to avoid passing them down
-                                    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
-                                    const { ref, node, ...safeRest } = rest as any;
-                                    
-                                    if (match && match[1] === 'mermaid') {
-                                        return <MermaidDisplay chart={String(children).replace(/\n$/, '')} />;
-                                    }
-
-                                    return match ? (
-                                        <div className="rounded-md overflow-hidden my-4 border border-border/50" dir="ltr">
-                                            <div className="bg-foreground/5 px-4 py-1.5 text-xs text-foreground/50 border-b border-border/50 font-mono flex items-center justify-between">
-                                                <span>{match[1]}</span>
-                                            </div>
-                                            <SyntaxHighlighter
-                                                {...safeRest}
-                                                PreTag="div"
-                                                language={match[1]}
-                                                style={vscDarkPlus}
-                                                customStyle={{ margin: 0, padding: '1rem', background: 'var(--card)' }}
-                                            >
-                                                {String(children).replace(/\n$/, '')}
-                                            </SyntaxHighlighter>
-                                        </div>
-                                    ) : (
-                                        <code {...rest} className={`${className} bg-foreground/10 px-1.5 py-0.5 rounded text-sm`}>
-                                            {children}
-                                        </code>
-                                    )
-                                }
-                            }}
+                            components={markdownComponents}
                         >
                             {fileContent || "Document is empty."}
                         </ReactMarkdown>
