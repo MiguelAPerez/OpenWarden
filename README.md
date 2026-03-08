@@ -12,6 +12,12 @@ around self-hosted tools and AI models.
 - [ ] Code Generation
 - [ ] Prompt&Model Evaluation
 
+## Tools
+
+- Ollama (AI Models)
+- Gitea (Repository Management)
+- SQLite (Database)
+
 ## Usage
 
 Start container:

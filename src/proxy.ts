@@ -13,7 +13,7 @@ const PUBLIC_PATHS = [
 
 export function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
-    const token = request.cookies.get('auth_token');
+    const token = request.cookies.get('next-auth.session-token') || request.cookies.get('__Secure-next-auth.session-token');
 
     // 2. Allow all internal Next.js assets and static files
     // Without this, your CSS and Images will be blocked!
