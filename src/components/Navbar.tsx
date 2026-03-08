@@ -1,6 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { UserProfileDropdown } from "./UserProfileDropdown";
+import { AdminDropdown } from "./AdminDropdown";
 import { config } from '@/config';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/auth";
@@ -25,15 +26,7 @@ export const Navbar = async () => {
                         <Link href="/" className="text-sm font-medium text-foreground/60 hover:text-foreground transition-colors">
                             Dashboard
                         </Link>
-                        <Link href="/repositories" className="text-sm font-medium text-foreground/60 hover:text-foreground transition-colors">
-                            Repositories
-                        </Link>
-                        <Link href="/agent" className="text-sm font-medium text-foreground/60 hover:text-foreground transition-colors">
-                            Agent
-                        </Link>
-                        <Link href="/evaluation-lab" className="text-sm font-medium text-foreground/60 hover:text-foreground transition-colors">
-                            Evaluation Lab
-                        </Link>
+                        <AdminDropdown />
                     </div>
 
                 </div>
