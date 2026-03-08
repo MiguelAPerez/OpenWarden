@@ -11,11 +11,13 @@ interface Repository {
     stars: number | null;
     forks: number | null;
     language: string | null;
+    topics: string | null;
     metadata: Record<string, string>;
 }
 
 export default function RepositoryCard({ repo }: { repo: Repository }) {
     const isGitea = repo.source === "gitea";
+    const topics = repo.topics ? JSON.parse(repo.topics) : [];
 
     return (
         <div className="glass p-6 rounded-2xl border border-border group hover:border-primary/30 transition-all duration-300 flex flex-col h-full">
@@ -43,6 +45,16 @@ export default function RepositoryCard({ repo }: { repo: Repository }) {
                     </span>
                 )}
             </div>
+
+            {topics.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-4">
+                    {topics.map((topic: string) => (
+                        <span key={topic} className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-foreground/5 text-foreground/50 border border-foreground/10 hover:bg-primary/5 hover:text-primary hover:border-primary/20 transition-colors">
+                            #{topic}
+                        </span>
+                    ))}
+                </div>
+            )}
 
             <p className="text-sm text-foreground/60 line-clamp-2 mb-6 flex-grow">
                 {repo.description || "No description provided."}
