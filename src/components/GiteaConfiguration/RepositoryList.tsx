@@ -12,7 +12,9 @@ interface Repository {
     stars: number | null;
     forks: number | null;
     language: string | null;
-    metadata: Record<string, string>;
+    topics: string | null;
+    docsMetadata: Record<string, unknown>;
+    agentMetadata: Record<string, unknown>;
 }
 
 export default function RepositoryList({ initialRepos }: { initialRepos: Repository[] }) {

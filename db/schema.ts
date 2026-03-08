@@ -136,7 +136,8 @@ export const repositories = sqliteTable("repository", {
     language: text("language"),
     topics: text("topics"), // JSON string array
     lastAnalyzedHash: text("lastAnalyzedHash"),
-    metadata: text("metadata"), // JSON string
+    docsMetadata: text("docs_metadata"), // JSON string
+    agentMetadata: text("agent_metadata"), // JSON string
     analyzedAt: integer("analyzedAt", { mode: "timestamp_ms" }),
     updatedAt: integer("updatedAt", { mode: "timestamp_ms" }).notNull(),
     cachedAt: integer("cachedAt", { mode: "timestamp_ms" }).notNull(),

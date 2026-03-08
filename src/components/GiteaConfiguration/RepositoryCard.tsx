@@ -12,7 +12,8 @@ interface Repository {
     forks: number | null;
     language: string | null;
     topics: string | null;
-    metadata: Record<string, string>;
+    docsMetadata: Record<string, unknown>;
+    agentMetadata: Record<string, unknown>;
 }
 
 export default function RepositoryCard({ repo }: { repo: Repository }) {
@@ -39,9 +40,9 @@ export default function RepositoryCard({ repo }: { repo: Repository }) {
                         </p>
                     </div>
                 </div>
-                {repo.metadata.type && (
+                {typeof repo.docsMetadata.type === "string" && (
                     <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-                        {repo.metadata.type}
+                        {repo.docsMetadata.type}
                     </span>
                 )}
             </div>

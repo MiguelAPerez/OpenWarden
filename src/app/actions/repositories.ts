@@ -16,7 +16,8 @@ export async function getCachedRepositories() {
 
     return repos.map(repo => ({
         ...repo,
-        metadata: repo.metadata ? JSON.parse(repo.metadata) : {}
+        docsMetadata: repo.docsMetadata ? JSON.parse(repo.docsMetadata) : {},
+        agentMetadata: repo.agentMetadata ? JSON.parse(repo.agentMetadata) : {}
     }));
 }
 
@@ -88,14 +89,14 @@ async function syncGitea(userId: string) {
             };
 
             const metadataValue = gRepo.name.includes("monorepo") ? "monorepo" : "package";
-            const currentMetadata = existing?.metadata ? JSON.parse(existing.metadata) : {};
-            const updatedMetadata = { ...currentMetadata, type: metadataValue };
+            const currentDocsMetadata = existing?.docsMetadata ? JSON.parse(existing.docsMetadata) : {};
+            const updatedDocsMetadata = { ...currentDocsMetadata, type: metadataValue };
 
             if (existing) {
                 db.update(repositories)
                     .set({
                         ...repoData,
-                        metadata: JSON.stringify(updatedMetadata)
+                        docsMetadata: JSON.stringify(updatedDocsMetadata)
                     })
                     .where(eq(repositories.id, existing.id))
                     .run();
@@ -104,7 +105,7 @@ async function syncGitea(userId: string) {
                     .values({
                         id: crypto.randomUUID(),
                         ...repoData,
-                        metadata: JSON.stringify(updatedMetadata)
+                        docsMetadata: JSON.stringify(updatedDocsMetadata)
                     })
                     .run();
             }

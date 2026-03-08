@@ -106,7 +106,7 @@ export async function analyzeRepoDocs(filter?: (repo: unknown) => boolean) {
                 await db.update(repositories)
                     .set({
                         lastAnalyzedHash: currentHash,
-                        metadata: JSON.stringify(metadata),
+                        docsMetadata: JSON.stringify(metadata),
                         analyzedAt: new Date(),
                         updatedAt: new Date(),
                     })

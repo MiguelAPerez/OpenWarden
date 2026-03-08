@@ -10,7 +10,9 @@ export interface Repository {
     description: string | null;
     language: string | null;
     lastAnalyzedHash?: string | null;
-    metadata?: Record<string, string>;
+    topics?: string | null;
+    docsMetadata?: Record<string, unknown>;
+    agentMetadata?: Record<string, unknown>;
 }
 
 interface TreeNode {
@@ -140,7 +142,10 @@ export default function DocsSidebar({
     );
 
     const groupedRepos = filteredRepos.reduce((acc, repo) => {
-        const type = repo.metadata?.["type"] || "Other";
+        const docsMetadata = repo.docsMetadata as Record<string, unknown> | undefined;
+        const typeValue = docsMetadata?.type;
+        const type = typeof typeValue === "string" ? typeValue : "Other";
+        
         if (!acc[type]) acc[type] = [];
         acc[type].push(repo);
         return acc;
