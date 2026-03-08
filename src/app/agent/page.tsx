@@ -2,7 +2,7 @@ import React from "react";
 import { getAgentConfig } from "@/app/actions/config";
 import { getSkills } from "@/app/actions/skills";
 import { getTools } from "@/app/actions/tools";
-import { AgentPageClient } from "@/components/AgentPageClient";
+import { AgentPageClient } from "@/components/AgentConfiguration/AgentPageClient";
 
 export default async function AgentPage() {
     const config = await getAgentConfig();

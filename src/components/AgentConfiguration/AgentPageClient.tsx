@@ -2,8 +2,8 @@
 
 import React, { useState } from "react";
 import { AgentConfigForm } from "./AgentConfigForm";
-import { SkillsManager } from "./SkillsManager";
-import { ToolsManager } from "./ToolsManager";
+import { SkillsManager } from "@/components/AgentConfiguration/SkillsManager";
+import { ToolsManager } from "@/components/AgentConfiguration/ToolsManager";
 import { AgentConfig, Skill, Tool } from "@/types/agent";
 
 export const AgentPageClient = ({

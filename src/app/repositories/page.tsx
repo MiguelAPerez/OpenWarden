@@ -1,7 +1,7 @@
 import React from "react";
 import { getCachedRepositories } from "@/app/actions/repositories";
-import RepositoryList from "@/components/RepositoryList";
-import SyncButton from "@/components/SyncButton";
+import RepositoryList from "@/components/GiteaConfiguration/RepositoryList";
+import SyncButton from "@/components/GiteaConfiguration/SyncButton";
 
 export default async function RepositoriesPage() {
     const repos = await getCachedRepositories();
