@@ -1,14 +1,11 @@
 import { db } from "./index"
-import { users, accounts, sessions, verificationTokens, permissions, userPermissions, giteaConfigurations, repositories, repositoryMetadata, agentConfigurations, skills, tools, contextGroups, benchmarks, benchmarkEntries, ollamaConfigurations, ollamaModels } from "./schema"
+import { users, accounts, sessions, verificationTokens, permissions, userPermissions, giteaConfigurations, repositories, agentConfigurations, skills, tools, contextGroups, benchmarks, benchmarkEntries, ollamaConfigurations, ollamaModels } from "./schema"
 
 async function clear() {
     console.log("🧹 Clearing database...")
 
     try {
         // Order matters if there are foreign key constraints without cascade (though schema has onDelete: "cascade")
-
-        console.log("- Clearing repository metadata...")
-        await db.delete(repositoryMetadata)
 
         console.log("- Clearing repositories...")
         await db.delete(repositories)

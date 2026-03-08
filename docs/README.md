@@ -20,6 +20,7 @@ This project is a premium Next.js application bootstrapped with the `nextjs_app_
   - [authentication](authentication.md): Details the NextAuth permissions.
   - [orm](orm.md): Details the Drizzle database schema, seeder process, and DB clearing instructions.
   - [context-groups](context-groups.md): Explains the benchmarking evaluation system and test case structures.
+  - [docs-chat](docs-chat.md): Explains the DocsChat architecture and document parsing layout.
 
 ## Running Locally
 

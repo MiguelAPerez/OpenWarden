@@ -134,20 +134,12 @@ export const repositories = sqliteTable("repository", {
     stars: integer("stars").default(0),
     forks: integer("forks").default(0),
     language: text("language"),
+    topics: text("topics"), // JSON string array
+    lastAnalyzedHash: text("lastAnalyzedHash"),
+    metadata: text("metadata"), // JSON string
+    analyzedAt: integer("analyzedAt", { mode: "timestamp_ms" }),
     updatedAt: integer("updatedAt", { mode: "timestamp_ms" }).notNull(),
     cachedAt: integer("cachedAt", { mode: "timestamp_ms" }).notNull(),
-})
-
-export const repositoryMetadata = sqliteTable("repository_metadata", {
-    id: text("id")
-        .primaryKey()
-        .$defaultFn(() => crypto.randomUUID()),
-    repositoryId: text("repositoryId")
-        .notNull()
-        .references(() => repositories.id, { onDelete: "cascade" }),
-    key: text("key").notNull(),
-    value: text("value").notNull(),
-    updatedAt: integer("updatedAt", { mode: "timestamp_ms" }).notNull(),
 })
 
 export const agentConfigurations = sqliteTable("agent_configuration", {

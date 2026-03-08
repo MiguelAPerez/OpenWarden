@@ -56,7 +56,18 @@ export async function cloneOrUpdateRepository(repoId: string) {
         await execAsync(`git clone "${cloneUrl}.git" "${repoDir}"`);
     }
 
-    return { success: true, path: repoDir };
+    // Get the latest commit hash, fallback to string 'empty' or keep empty if there are no commits
+    let lastAnalyzedHash = "none";
+    try {
+        const { stdout: hashStdout } = await execAsync(`git -C "${repoDir}" rev-parse HEAD`);
+        lastAnalyzedHash = hashStdout.trim();
+    } catch {
+        // This commonly occurs if the repository is completely empty and has no commits
+        console.warn(`Could not get HEAD hash for repo: ${repo.fullName}, it might be empty.`);
+    }
+
+    // Updating the repo analysis status is now deferred to the repoAnalyzes cron job.
+    return { success: true, path: repoDir, hash: lastAnalyzedHash };
 }
 
 export async function getRepoMarkdownFiles(repoId: string) {

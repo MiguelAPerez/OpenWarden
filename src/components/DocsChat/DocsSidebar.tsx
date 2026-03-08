@@ -9,6 +9,7 @@ export interface Repository {
     fullName: string;
     description: string | null;
     language: string | null;
+    lastAnalyzedHash?: string | null;
     metadata?: Record<string, string>;
 }
 
@@ -203,7 +204,7 @@ export default function DocsSidebar({
                                         <div className="flex items-center gap-2 flex-1 min-w-0">
                                             {loadingRepo === repo.id ? (
                                                 <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse shrink-0" title="Loading..." />
-                                            ) : repoFiles[repo.id] ? (
+                                            ) : repoFiles[repo.id] || repo.lastAnalyzedHash ? (
                                                 <div className="w-2 h-2 rounded-full bg-green-500 shrink-0" title="Loaded" />
                                             ) : (
                                                 <div className="w-2 h-2 rounded-full bg-foreground/20 shrink-0" title="Not loaded" />

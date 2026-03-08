@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/../db";
-import { repositories, giteaConfigurations, repositoryMetadata } from "@/../db/schema";
+import { repositories, giteaConfigurations } from "@/../db/schema";
 import { eq, and } from "drizzle-orm";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/auth";
@@ -14,19 +14,10 @@ export async function getCachedRepositories() {
 
     const repos = db.select().from(repositories).where(eq(repositories.userId, session.user.id)).all();
 
-    // Fetch metadata for each repo
-    const reposWithMetadata = await Promise.all(repos.map(async (repo) => {
-        const metadata = db.select().from(repositoryMetadata).where(eq(repositoryMetadata.repositoryId, repo.id)).all();
-        return {
-            ...repo,
-            metadata: metadata.reduce((acc, curr) => {
-                acc[curr.key] = curr.value;
-                return acc;
-            }, {} as Record<string, string>)
-        };
+    return repos.map(repo => ({
+        ...repo,
+        metadata: repo.metadata ? JSON.parse(repo.metadata) : {}
     }));
-
-    return reposWithMetadata;
 }
 
 export async function syncRepositories() {
@@ -67,7 +58,6 @@ async function syncGitea(userId: string) {
 
         const giteaRepos = await response.json();
 
-        const now = new Date();
 
         for (const gRepo of giteaRepos) {
             const externalId = gRepo.id.toString();
@@ -81,8 +71,6 @@ async function syncGitea(userId: string) {
                 )
             ).get();
 
-            let repoId: string;
-
             const repoData = {
                 userId,
                 source: "gitea",
@@ -94,49 +82,29 @@ async function syncGitea(userId: string) {
                 stars: gRepo.stars_count || 0,
                 forks: gRepo.forks_count || 0,
                 language: gRepo.language || "",
+                topics: JSON.stringify(gRepo.topics || []),
                 updatedAt: new Date(gRepo.updated_at),
-                cachedAt: now,
+                cachedAt: new Date(),
             };
+
+            const metadataValue = gRepo.name.includes("monorepo") ? "monorepo" : "package";
+            const currentMetadata = existing?.metadata ? JSON.parse(existing.metadata) : {};
+            const updatedMetadata = { ...currentMetadata, type: metadataValue };
 
             if (existing) {
                 db.update(repositories)
-                    .set(repoData)
+                    .set({
+                        ...repoData,
+                        metadata: JSON.stringify(updatedMetadata)
+                    })
                     .where(eq(repositories.id, existing.id))
                     .run();
-                repoId = existing.id;
             } else {
-                const newRepo = db.insert(repositories)
+                db.insert(repositories)
                     .values({
                         id: crypto.randomUUID(),
-                        ...repoData
-                    })
-                    .returning()
-                    .get();
-                repoId = newRepo.id;
-            }
-
-            // Upsert metadata (stub for labeling)
-            const existingMetadata = db.select().from(repositoryMetadata).where(
-                and(
-                    eq(repositoryMetadata.repositoryId, repoId),
-                    eq(repositoryMetadata.key, "type")
-                )
-            ).get();
-
-            const metadataValue = gRepo.name.includes("monorepo") ? "monorepo" : "package";
-
-            if (existingMetadata) {
-                db.update(repositoryMetadata)
-                    .set({ value: metadataValue, updatedAt: now })
-                    .where(eq(repositoryMetadata.id, existingMetadata.id))
-                    .run();
-            } else {
-                db.insert(repositoryMetadata)
-                    .values({
-                        repositoryId: repoId,
-                        key: "type",
-                        value: metadataValue,
-                        updatedAt: now,
+                        ...repoData,
+                        metadata: JSON.stringify(updatedMetadata)
                     })
                     .run();
             }
