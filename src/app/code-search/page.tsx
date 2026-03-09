@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useTransition, useEffect, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { searchCode, RepoSearchResult } from "@/app/actions/search";
+import { semanticSearch } from "@/app/actions/semantic-search";
 import { getCachedRepositories } from "@/app/actions/repositories";
 
 type Repo = {
@@ -48,10 +49,42 @@ function ErrorBanner({ message, onClose }: { message: string; onClose: () => voi
     );
 }
 
-function MatchLine({ line, matchStart, matchEnd }: { line: string; matchStart: number; matchEnd: number }) {
-    const before = line.slice(0, matchStart);
-    const match = line.slice(matchStart, matchEnd);
-    const after = line.slice(matchEnd);
+function MatchLine({ line, query, matchStart, matchEnd }: { line: string; query?: string; matchStart?: number; matchEnd?: number }) {
+    if (query && (!matchStart || !matchEnd || matchStart === matchEnd)) {
+        // Multi-word highlight (Semantic mode or fallback)
+        const words = query
+            .replace(/([a-z])([A-Z])/g, "$1 $2")
+            .split(/[^a-zA-Z0-9]/)
+            .filter(w => w.length >= 3);
+        
+        if (words.length === 0) return <span>{line}</span>;
+        
+        // Escape and create flexible regex (allows underscores/dashes between letters)
+        const flexible = words.map(w => 
+            w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+             .split("")
+             .join("[^a-zA-Z0-9]*")
+        );
+        const regex = new RegExp(`(${flexible.join("|")})`, "gi");
+        const parts = line.split(regex);
+        
+        return (
+            <span>
+                {parts.map((part, i) => 
+                    regex.test(part) 
+                        ? <mark key={i} className="bg-primary/25 text-primary rounded px-0.5 font-semibold not-italic">{part}</mark>
+                        : <span key={i} className="text-foreground/70">{part}</span>
+                )}
+            </span>
+        );
+    }
+
+    const start = matchStart ?? 0;
+    const end = matchEnd ?? 0;
+    const before = line.slice(0, start);
+    const match = line.slice(start, end);
+    const after = line.slice(end);
+    
     return (
         <span>
             <span className="text-foreground/60">{before}</span>
@@ -68,13 +101,12 @@ function RepoChip({ repo, selected, onToggle }: { repo: Repo; selected: boolean;
             type="button"
             onClick={isDisabled ? undefined : onToggle}
             disabled={isDisabled}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-all duration-150 ${
-                isDisabled
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-all duration-150 ${isDisabled
                     ? "opacity-40 grayscale cursor-not-allowed bg-foreground/5 border-border text-foreground/40"
                     : selected
-                    ? "bg-primary/15 border-primary/50 text-primary shadow-sm shadow-primary/10"
-                    : "bg-foreground/5 border-border text-foreground/50 hover:border-foreground/30 hover:text-foreground/70"
-            }`}
+                        ? "bg-primary/15 border-primary/50 text-primary shadow-sm shadow-primary/10"
+                        : "bg-foreground/5 border-border text-foreground/50 hover:border-foreground/30 hover:text-foreground/70"
+                }`}
             title={isDisabled ? "Repository is disabled" : undefined}
         >
             <div className={`w-1.5 h-1.5 rounded-full ${isDisabled ? "bg-foreground/20" : selected ? "bg-primary" : "bg-foreground/30"}`} />
@@ -100,6 +132,10 @@ export default function CodeSearchPage() {
             searchParams.get("exclude") ||
             searchParams.get("max")
         );
+    });
+    const [searchMode, setSearchMode] = useState<"regex" | "semantic">(() => {
+        const mode = searchParams.get("mode");
+        return (mode === "semantic" ? "semantic" : "regex") as "regex" | "semantic";
     });
     const [caseSensitive, setCaseSensitive] = useState(() => searchParams.get("case") === "1");
     const [wholeWord, setWholeWord] = useState(() => searchParams.get("word") === "1");
@@ -146,7 +182,7 @@ export default function CodeSearchPage() {
                 }
             })
             .catch(() => setError("Failed to load repositories."));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const toggleRepo = useCallback((id: string) => {
@@ -177,14 +213,17 @@ export default function CodeSearchPage() {
         // Build URL encoding all options
         const params = new URLSearchParams();
         params.set("q", pattern);
+        params.set("mode", searchMode);
         selectedRepoIds.forEach((id) => params.append("repo", id));
-        if (caseSensitive) params.set("case", "1");
-        if (wholeWord) params.set("word", "1");
-        selectedExtensions.forEach((ext) => params.append("ext", ext));
-        if (excludeInput !== "node_modules, .git, dist, build, .next") {
-            params.set("exclude", excludeInput);
+        if (searchMode === "regex") {
+            if (caseSensitive) params.set("case", "1");
+            if (wholeWord) params.set("word", "1");
+            selectedExtensions.forEach((ext) => params.append("ext", ext));
+            if (excludeInput !== "node_modules, .git, dist, build, .next") {
+                params.set("exclude", excludeInput);
+            }
+            if (maxMatchesPerFile !== 50) params.set("max", String(maxMatchesPerFile));
         }
-        if (maxMatchesPerFile !== 50) params.set("max", String(maxMatchesPerFile));
         router.push(`/code-search?${params.toString()}`, { scroll: false });
 
         setError(null);
@@ -195,21 +234,30 @@ export default function CodeSearchPage() {
 
         startTransition(async () => {
             try {
-                const res = await searchCode({
-                    repoIds: selectedRepoIds,
-                    pattern,
-                    caseSensitive,
-                    wholeWord,
-                    includeExtensions: selectedExtensions,
-                    excludePatterns,
-                    maxMatchesPerFile,
-                });
-                setResults(res);
+                let res;
+                if (searchMode === "regex") {
+                    res = await searchCode({
+                        repoIds: selectedRepoIds,
+                        pattern,
+                        caseSensitive,
+                        wholeWord,
+                        includeExtensions: selectedExtensions,
+                        excludePatterns,
+                        maxMatchesPerFile,
+                    });
+                } else {
+                    res = await semanticSearch({
+                        repoIds: selectedRepoIds,
+                        query: pattern,
+                        limit: 50,
+                    });
+                }
+                setResults(res as RepoSearchResult[]);
             } catch (err: unknown) {
                 setError(err instanceof Error ? err.message : "Search failed.");
             }
         });
-    }, [pattern, patternValid, selectedRepoIds, caseSensitive, wholeWord, selectedExtensions, excludeInput, maxMatchesPerFile, router]);
+    }, [pattern, patternValid, selectedRepoIds, searchMode, caseSensitive, wholeWord, selectedExtensions, excludeInput, maxMatchesPerFile, router]);
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === "Enter" && !e.shiftKey) {
@@ -222,10 +270,39 @@ export default function CodeSearchPage() {
 
     return (
         <div className="max-w-6xl mx-auto px-4 py-10 space-y-6">
-            {/* Header */}
-            <div className="space-y-1">
-                <h1 className="text-3xl font-bold tracking-tight">Code Search</h1>
-                <p className="text-foreground/50 text-sm">Search across your repositories using regular expressions.</p>
+            {/* Search Header & Mode Toggle */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <div className="space-y-1">
+                    <h1 className="text-3xl font-bold tracking-tight">Code Search</h1>
+                    <p className="text-foreground/50 text-sm">
+                        {searchMode === "regex"
+                            ? "Search across your repositories using regular expressions."
+                            : "Explore your codebase using natural language semantic search."
+                        }
+                    </p>
+                </div>
+
+                {/* Mode Selector */}
+                <div className="flex bg-foreground/5 p-1 rounded-xl border border-border self-start md:self-auto">
+                    <button
+                        onClick={() => setSearchMode("regex")}
+                        className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${searchMode === "regex"
+                                ? "bg-white dark:bg-foreground/10 text-primary shadow-sm"
+                                : "text-foreground/40 hover:text-foreground/60"
+                            }`}
+                    >
+                        Regex
+                    </button>
+                    <button
+                        onClick={() => setSearchMode("semantic")}
+                        className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${searchMode === "semantic"
+                                ? "bg-white dark:bg-foreground/10 text-primary shadow-sm"
+                                : "text-foreground/40 hover:text-foreground/60"
+                            }`}
+                    >
+                        Semantic
+                    </button>
+                </div>
             </div>
 
             {/* Main search card */}
@@ -233,26 +310,33 @@ export default function CodeSearchPage() {
                 {/* Regex input */}
                 <div className="space-y-2">
                     <label className="text-xs font-semibold text-foreground/50 uppercase tracking-wider">
-                        Pattern <span className="text-foreground/30 normal-case font-normal">(regex)</span>
+                        {searchMode === "regex" ? "Pattern" : "Concept"}
+                        <span className="text-foreground/30 normal-case font-normal">
+                            {searchMode === "regex" ? " (regex)" : " (natural language)"}
+                        </span>
                     </label>
                     <div className="relative">
-                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground/30 font-mono text-sm select-none">/</div>
                         <input
                             ref={inputRef}
                             type="text"
                             value={pattern}
                             onChange={(e) => setPattern(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            placeholder="e.g. useEffect\(.*\[\]\)"
+                            placeholder={searchMode === "regex" ? "e.g. useEffect\\(.*\\[\\]\\)" : "e.g. how does authentication work?"}
                             spellCheck={false}
                             autoComplete="off"
-                            className={`w-full pl-8 pr-16 py-3.5 rounded-xl border font-mono text-sm bg-foreground/5 placeholder:text-foreground/25 outline-none transition-all duration-150
-                                ${patternValid
+                            className={`w-full ${searchMode === "regex" ? "pl-8 pr-16" : "px-4"} py-3.5 rounded-xl border font-mono text-sm bg-foreground/5 placeholder:text-foreground/25 outline-none transition-all duration-150
+                                ${patternValid || searchMode === "semantic"
                                     ? "border-border focus:border-primary/60 focus:bg-primary/5 focus:shadow-sm focus:shadow-primary/10"
                                     : "border-red-500/50 bg-red-500/5 focus:border-red-500/60"
                                 }`}
                         />
-                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-foreground/30 font-mono text-sm select-none">/</div>
+                        {searchMode === "regex" && (
+                            <>
+                                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground/30 font-mono text-sm select-none">/</div>
+                                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-foreground/30 font-mono text-sm select-none">/</div>
+                            </>
+                        )}
 
                         {!patternValid && (
                             <p className="absolute -bottom-5 left-0 text-xs text-red-400">Invalid regular expression</p>
@@ -364,11 +448,10 @@ export default function CodeSearchPage() {
                                             key={ext.value}
                                             type="button"
                                             onClick={() => toggleExtension(ext.value)}
-                                            className={`px-2.5 py-1 rounded-lg border text-xs font-mono transition-all duration-150 ${
-                                                selectedExtensions.includes(ext.value)
+                                            className={`px-2.5 py-1 rounded-lg border text-xs font-mono transition-all duration-150 ${selectedExtensions.includes(ext.value)
                                                     ? "bg-primary/15 border-primary/50 text-primary"
                                                     : "bg-foreground/5 border-border text-foreground/50 hover:border-foreground/30 hover:text-foreground/80"
-                                            }`}
+                                                }`}
                                         >
                                             {ext.value}
                                         </button>
@@ -459,7 +542,7 @@ export default function CodeSearchPage() {
 
                     {/* Per-repo results */}
                     {results.filter((r) => r.matches.length > 0).map((result) => (
-                        <RepoResults key={result.repoId} result={result} />
+                        <RepoResults key={result.repoId} result={result} query={pattern} />
                     ))}
 
                     {totalMatches === 0 && (
@@ -481,7 +564,7 @@ export default function CodeSearchPage() {
     );
 }
 
-function RepoResults({ result }: { result: RepoSearchResult }) {
+function RepoResults({ result, query }: { result: RepoSearchResult; query: string }) {
     const [collapsed, setCollapsed] = useState(false);
 
     // Group matches by file
@@ -526,7 +609,7 @@ function RepoResults({ result }: { result: RepoSearchResult }) {
             {!collapsed && (
                 <div className="divide-y divide-border border-t border-border">
                     {Object.entries(byFile).map(([filePath, matches]) => (
-                        <FileResults key={filePath} filePath={filePath} matches={matches} />
+                        <FileResults key={filePath} filePath={filePath} matches={matches} query={query} />
                     ))}
                 </div>
             )}
@@ -534,7 +617,7 @@ function RepoResults({ result }: { result: RepoSearchResult }) {
     );
 }
 
-function FileResults({ filePath, matches }: { filePath: string; matches: RepoSearchResult["matches"] }) {
+function FileResults({ filePath, matches, query }: { filePath: string; matches: RepoSearchResult["matches"]; query: string }) {
     const [collapsed, setCollapsed] = useState(false);
     const parts = filePath.split("/");
     const fileName = parts.pop() ?? filePath;
@@ -573,13 +656,25 @@ function FileResults({ filePath, matches }: { filePath: string; matches: RepoSea
                             <span className="w-12 text-right pr-4 py-2 pl-4 text-foreground/25 select-none border-r border-border shrink-0 group-hover:text-foreground/40 transition-colors">
                                 {match.lineNumber}
                             </span>
-                            <pre className="px-4 py-2 whitespace-pre-wrap break-all text-foreground/70 leading-relaxed">
-                                <MatchLine
-                                    line={match.lineContent}
-                                    matchStart={match.matchStart}
-                                    matchEnd={match.matchEnd}
-                                />
-                            </pre>
+                            <div className="flex-1 min-w-0">
+                                <div className="px-4 pt-1 flex items-center gap-2">
+                                    <span className={`text-[9px] font-bold uppercase tracking-tight px-1.5 py-0.5 rounded ${
+                                        (match.similarity ?? 0) > 0.7 ? "bg-green-500/10 text-green-500" :
+                                        (match.similarity ?? 0) > 0.5 ? "bg-blue-500/10 text-blue-500" :
+                                        "bg-foreground/10 text-foreground/40"
+                                    }`}>
+                                        {Math.round((match.similarity ?? 0) * 100)}% match
+                                    </span>
+                                </div>
+                                <pre className="px-4 pb-2 pt-1 whitespace-pre-wrap break-all text-foreground/70 leading-relaxed">
+                                    <MatchLine
+                                        line={match.lineContent}
+                                        query={query}
+                                        matchStart={match.matchStart}
+                                        matchEnd={match.matchEnd}
+                                    />
+                                </pre>
+                            </div>
                         </div>
                     ))}
                 </div>

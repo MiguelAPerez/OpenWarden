@@ -15,6 +15,13 @@
       "when": 1773028359432,
       "tag": "0001_shiny_bloodstrike",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1773030071325,
+      "tag": "0002_add_semantic_search",
+      "breakpoints": true
     }
   ]
 }

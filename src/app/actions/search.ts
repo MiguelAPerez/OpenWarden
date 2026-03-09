@@ -16,6 +16,7 @@ export interface SearchMatch {
     lineContent: string;
     matchStart: number;
     matchEnd: number;
+    similarity?: number;
 }
 
 export interface RepoSearchResult {
