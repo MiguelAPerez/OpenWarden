@@ -8,6 +8,10 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
 
     steps:
     - uses: actions/checkout@v4
@@ -25,4 +29,13 @@ jobs:
       run: npm run lint
       
     - name: Run Tests
-      run: npm run test --if-present
+      run: npm run test:coverage
+      
+    - name: Jest coverage report
+      if: github.event_name == 'pull_request'
+      uses: artiomtr/jest-coverage-report-action@v2
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        test-script: npm test
+        annotations: failed-tests
+        package-manager: npm
