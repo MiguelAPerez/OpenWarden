@@ -1,7 +1,9 @@
 export interface AgentConfig {
     id: string;
     userId: string;
+    name: string;
     model: string;
+    systemPromptId: string | null;
     systemPrompt: string;
     temperature: number;
     updatedAt: Date;
@@ -10,6 +12,7 @@ export interface AgentConfig {
 export interface Skill {
     id: string;
     userId: string;
+    agentId: string | null;
     name: string;
     description: string;
     content: string;
@@ -20,6 +23,7 @@ export interface Skill {
 export interface Tool {
     id: string;
     userId: string;
+    agentId: string | null;
     name: string;
     description: string;
     schema: string;

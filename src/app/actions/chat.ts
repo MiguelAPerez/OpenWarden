@@ -1,30 +1,55 @@
 "use server";
 
 import { db } from "@/../db";
-import { agentConfigurations, skills, tools, repositories } from "@/../db/schema";
-import { eq, and } from "drizzle-orm";
+import { agentConfigurations, skills, tools, repositories, systemPrompts } from "@/../db/schema";
+import { eq, and, isNull } from "drizzle-orm";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/auth";
 import { getRepoFileContent } from "./files";
 import { ollamaConfigurations } from "@/../db/schema";
 
-export async function chatWithDoc(repoId: string, filePath: string | null, prompt: string) {
+export async function chatWithDoc(repoId: string, filePath: string | null, prompt: string, agentId?: string) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) throw new Error("Unauthorized");
 
     const userId = session.user.id;
 
     // 1. Get Agent Config
-    const agentConfig = db.select().from(agentConfigurations).where(eq(agentConfigurations.userId, userId)).get();
+    let agentConfig;
+    if (agentId) {
+        agentConfig = db.select().from(agentConfigurations).where(and(eq(agentConfigurations.id, agentId), eq(agentConfigurations.userId, userId))).get();
+    } else {
+        // Fallback to the first agent if no agentId is provided
+        agentConfig = db.select().from(agentConfigurations).where(eq(agentConfigurations.userId, userId)).get();
+    }
+
     if (!agentConfig || !agentConfig.model) {
         throw new Error("Agent not configured. Please set a model in Agent settings.");
     }
 
-    // 2. Get Enabled Skills and Tools
-    const enabledSkills = db.select().from(skills).where(and(eq(skills.userId, userId), eq(skills.isEnabled, true))).all();
-    const enabledTools = db.select().from(tools).where(and(eq(tools.userId, userId), eq(tools.isEnabled, true))).all();
+    // 2. Resolve System Prompt (Personality)
+    let personalityPrompt = agentConfig.systemPrompt;
+    if (agentConfig.systemPromptId) {
+        const personality = db.select().from(systemPrompts).where(eq(systemPrompts.id, agentConfig.systemPromptId)).get();
+        if (personality) {
+            personalityPrompt = personality.content;
+        }
+    }
 
-    // 3. Get Repo Context
+    // 3. Get Enabled Skills and Tools for this agent
+    const enabledSkills = db.select().from(skills).where(and(
+        eq(skills.userId, userId),
+        eq(skills.isEnabled, true),
+        agentId ? eq(skills.agentId, agentId) : isNull(skills.agentId) // Handle legacy or global if any
+    )).all();
+
+    const enabledTools = db.select().from(tools).where(and(
+        eq(tools.userId, userId),
+        eq(tools.isEnabled, true),
+        agentId ? eq(tools.agentId, agentId) : isNull(tools.agentId)
+    )).all();
+
+    // 4. Get Repo Context
     const repo = db.select().from(repositories).where(eq(repositories.id, repoId)).get();
     if (!repo) throw new Error("Repository not found");
 
@@ -32,15 +57,15 @@ export async function chatWithDoc(repoId: string, filePath: string | null, promp
     if (filePath) {
         try {
             fileContent = await getRepoFileContent(repoId, filePath);
-            // Strip frontmatter from content sent to AI as well to keep it clean (optional but good)
+            // Strip frontmatter
             fileContent = fileContent.replace(/^---\s*[\s\S]*?---\s*/, '');
         } catch (e) {
             console.error("Error reading file content for chat:", e);
         }
     }
 
-    // 4. Construct System Prompt
-    let fullSystemPrompt = agentConfig.systemPrompt || "You are a helpful coding assistant.";
+    // 5. Construct System Prompt
+    let fullSystemPrompt = personalityPrompt || "You are a helpful coding assistant.";
     
     if (enabledSkills.length > 0) {
         fullSystemPrompt += "\n\nAvailable Skills:\n" + enabledSkills.map(s => `- ${s.name}: ${s.description}\n${s.content}`).join("\n\n");
@@ -64,7 +89,7 @@ CRITICAL INSTRUCTIONS:
 5. Example JSON response: {"message": "You can find more details in the installation guide.", "redirect": "docs/install.md"}
 `;
 
-    // 5. Call Ollama
+    // 6. Call Ollama
     const ollamaConfig = db.select().from(ollamaConfigurations).where(eq(ollamaConfigurations.userId, userId)).get();
     if (!ollamaConfig) throw new Error("Ollama not configured in settings.");
 

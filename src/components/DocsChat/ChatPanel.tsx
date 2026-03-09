@@ -3,14 +3,17 @@
 import React, { useState } from "react";
 import { Repository } from "./DocsSidebar";
 import { chatWithDoc } from "@/app/actions/chat";
+import { AgentConfig } from "@/types/agent";
 
 interface ChatPanelProps {
     repo: Repository;
     filePath: string | null;
     onSelectFile: (path: string) => void;
+    agents: AgentConfig[];
 }
 
-export default function ChatPanel({ repo, filePath, onSelectFile }: ChatPanelProps) {
+export default function ChatPanel({ repo, filePath, onSelectFile, agents }: ChatPanelProps) {
+    const [selectedAgentId, setSelectedAgentId] = useState<string | null>(agents[0]?.id || null);
     const [messages, setMessages] = useState<{ role: "user" | "agent"; content: string }[]>([
         { role: "agent", content: "Hello! I'm ready to help you explore the document. What would you like to know?" }
     ]);
@@ -28,7 +31,7 @@ export default function ChatPanel({ repo, filePath, onSelectFile }: ChatPanelPro
         setIsLoading(true);
 
         try {
-            const response = await chatWithDoc(repo.id, filePath, userMessage);
+            const response = await chatWithDoc(repo.id, filePath, userMessage, selectedAgentId || undefined);
             
             setMessages(prev => [...prev, { 
                 role: "agent", 
@@ -52,11 +55,21 @@ export default function ChatPanel({ repo, filePath, onSelectFile }: ChatPanelPro
 
     return (
         <div className="flex flex-col h-full bg-foreground/[0.01]">
-            <div className="p-4 border-b border-border/50 shrink-0 flex items-center justify-between">
-                <h3 className="font-semibold flex items-center gap-2">
+            <div className="p-4 border-b border-border/50 shrink-0 flex items-center justify-between gap-4">
+                <h3 className="font-semibold flex items-center gap-2 whitespace-nowrap">
                     <span className={`w-2 h-2 rounded-full ${isLoading ? "bg-amber-500 animate-pulse" : "bg-green-500"}`}></span>
                     Agent Chat
                 </h3>
+                <select
+                    value={selectedAgentId || ""}
+                    onChange={(e) => setSelectedAgentId(e.target.value)}
+                    className="text-xs bg-foreground/5 border border-border/50 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-foreground/20 max-w-[150px] truncate"
+                >
+                    {agents.map(agent => (
+                        <option key={agent.id} value={agent.id}>{agent.name}</option>
+                    ))}
+                    {agents.length === 0 && <option value="">No Agents</option>}
+                </select>
             </div>
             
             <div className="flex-1 overflow-y-auto p-4 space-y-4">

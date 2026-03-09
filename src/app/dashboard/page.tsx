@@ -1,15 +1,13 @@
 import React from "react";
 import Link from "next/link";
 import { getCachedRepositories } from "@/app/actions/repositories";
-import { getAgentConfig } from "@/app/actions/config";
-import { getSkills } from "@/app/actions/skills";
-import { getTools } from "@/app/actions/tools";
+import { getAgentConfigs } from "@/app/actions/config";
 
 export default async function DashboardPage() {
   const repos = await getCachedRepositories();
-  const agentConfig = await getAgentConfig();
-  const skills = await getSkills();
-  const tools = await getTools();
+  const agents = await getAgentConfigs();
+
+  const primaryAgent = agents[0] || null;
 
   return (
     <main className="flex min-h-screen flex-col items-center p-6 sm:p-24 relative overflow-hidden">
@@ -88,17 +86,13 @@ export default async function DashboardPage() {
           
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col overflow-hidden">
-              <span className="text-2xl font-bold text-foreground truncate" title={agentConfig?.model || "Not set"}>{agentConfig?.model || "Not set"}</span>
-              <span className="text-xs uppercase tracking-wider text-foreground/50 font-semibold mt-1">Active Model</span>
+              <span className="text-2xl font-bold text-foreground truncate" title={primaryAgent?.name || "No Agents"}>{primaryAgent?.name || "No Agents"}</span>
+              <span className="text-xs uppercase tracking-wider text-foreground/50 font-semibold mt-1">Primary Agent</span>
             </div>
             <div className="flex gap-6">
               <div className="flex flex-col">
-                <span className="text-2xl font-bold text-foreground">{skills?.length || 0}</span>
-                <span className="text-xs uppercase tracking-wider text-foreground/50 font-semibold mt-1">Skills</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-2xl font-bold text-foreground">{tools?.length || 0}</span>
-                <span className="text-xs uppercase tracking-wider text-foreground/50 font-semibold mt-1">Tools</span>
+                <span className="text-2xl font-bold text-foreground">{agents.length}</span>
+                <span className="text-xs uppercase tracking-wider text-foreground/50 font-semibold mt-1">Total Agents</span>
               </div>
             </div>
           </div>

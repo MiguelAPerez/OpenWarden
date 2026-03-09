@@ -2,19 +2,23 @@
 
 import { db } from "@/../db";
 import { tools } from "@/../db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/auth";
 import { revalidatePath } from "next/cache";
 
-export async function getTools() {
+export async function getTools(agentId?: string) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return [];
+
+    if (agentId) {
+        return db.select().from(tools).where(and(eq(tools.userId, session.user.id), eq(tools.agentId, agentId))).all();
+    }
 
     return db.select().from(tools).where(eq(tools.userId, session.user.id)).all();
 }
 
-export async function saveTool(data: { id?: string; name: string; description: string; schema: string; isEnabled: boolean }) {
+export async function saveTool(data: { id?: string; agentId?: string | null; name: string; description: string; schema: string; isEnabled: boolean }) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) throw new Error("Unauthorized");
 
@@ -22,18 +26,20 @@ export async function saveTool(data: { id?: string; name: string; description: s
     if (data.id) {
         db.update(tools)
             .set({
+                agentId: data.agentId,
                 name: data.name,
                 description: data.description,
                 schema: data.schema,
                 isEnabled: data.isEnabled,
                 updatedAt: now,
             })
-            .where(eq(tools.id, data.id))
+            .where(and(eq(tools.id, data.id), eq(tools.userId, session.user.id)))
             .run();
     } else {
         db.insert(tools)
             .values({
                 userId: session.user.id,
+                agentId: data.agentId,
                 name: data.name,
                 description: data.description,
                 schema: data.schema,

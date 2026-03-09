@@ -4,14 +4,18 @@ import React, { useState } from "react";
 import { saveSkill, deleteSkill } from "@/app/actions/skills";
 import { Skill } from "@/types/agent";
 
-export const SkillsManager = ({ initialSkills }: { initialSkills: Skill[] }) => {
+export const SkillsManager = ({ initialSkills, agentId }: { initialSkills: Skill[], agentId: string | null }) => {
     const [isEditing, setIsEditing] = useState<string | null>(null);
     const [editForm, setEditForm] = useState({ name: "", description: "", content: "", isEnabled: true });
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!agentId) {
+            alert("Please select or create an agent first.");
+            return;
+        }
         try {
-            await saveSkill({ ...editForm, id: isEditing || undefined });
+            await saveSkill({ ...editForm, id: isEditing || undefined, agentId });
             window.location.reload();
         } catch {
             alert("Failed to save skill.");

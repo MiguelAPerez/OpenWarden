@@ -4,14 +4,18 @@ import React, { useState } from "react";
 import { saveTool, deleteTool } from "@/app/actions/tools";
 import { Tool } from "@/types/agent";
 
-export const ToolsManager = ({ initialTools }: { initialTools: Tool[] }) => {
+export const ToolsManager = ({ initialTools, agentId }: { initialTools: Tool[], agentId: string | null }) => {
     const [isEditing, setIsEditing] = useState<string | null>(null);
     const [editForm, setEditForm] = useState({ name: "", description: "", schema: "", isEnabled: true });
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!agentId) {
+            alert("Please select or create an agent first.");
+            return;
+        }
         try {
-            await saveTool({ ...editForm, id: isEditing || undefined });
+            await saveTool({ ...editForm, id: isEditing || undefined, agentId });
             window.location.reload();
         } catch {
             alert("Failed to save tool.");

@@ -1,17 +1,18 @@
 import React from "react";
 import { getCachedRepositories } from "@/app/actions/repositories";
+import { getAgentConfigs } from "@/app/actions/config";
 import DocsChatLayout from "@/components/DocsChat/DocsChatLayout";
 
 import { Repository } from "@/components/DocsChat/DocsSidebar";
 
 export default async function DocsChatPage() {
-    // Fetch all repositories for the current user
-    const allRepos = await getCachedRepositories();
+    // Fetch all repositories and agents for the current user
+    const [allRepos, agents] = await Promise.all([
+        getCachedRepositories(),
+        getAgentConfigs()
+    ]);
 
-    // For now, we'll filter by metadata type or just pass all if no specific label exists yet
-    // In a full implementation, you'd filter by a specific "docs" label
-    // `repo.metadata?.type === "docs"` or similar, but let's pass all to start
-    // since we haven't defined a "docs" label clearly in the DB.
+    // Filter by topics
     const docsRepos = allRepos.filter(repo => {
         const topics = repo.topics ? JSON.parse(repo.topics) : [];
         return topics.some((t: string) => t === "docs" || t === "documentation");
@@ -19,7 +20,10 @@ export default async function DocsChatPage() {
 
     return (
         <main className="min-h-screen bg-background text-foreground flex flex-col">
-            <DocsChatLayout repositories={docsRepos as unknown as Repository[]} />
+            <DocsChatLayout 
+                repositories={docsRepos as unknown as Repository[]} 
+                agents={agents}
+            />
         </main>
     );
 }

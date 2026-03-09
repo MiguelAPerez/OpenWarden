@@ -4,12 +4,14 @@ import React, { useState } from "react";
 import DocsSidebar, { Repository } from "./DocsSidebar";
 import DocViewer from "./DocViewer";
 import ChatPanel from "./ChatPanel";
+import { AgentConfig } from "@/types/agent";
 
 interface DocsChatLayoutProps {
     repositories: Repository[];
+    agents: AgentConfig[];
 }
 
-export default function DocsChatLayout({ repositories }: DocsChatLayoutProps) {
+export default function DocsChatLayout({ repositories, agents }: DocsChatLayoutProps) {
     const [isChatting, setIsChatting] = useState(true);
     const [selectedRepo, setSelectedRepo] = useState<Repository | null>(null);
     const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
@@ -118,6 +120,7 @@ export default function DocsChatLayout({ repositories }: DocsChatLayoutProps) {
                             repo={selectedRepo} 
                             filePath={selectedFilePath} 
                             onSelectFile={handleSelectFile} 
+                            agents={agents}
                         />
                     )}
                     {isChatting && !selectedRepo && (

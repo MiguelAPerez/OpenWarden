@@ -149,9 +149,10 @@ export const agentConfigurations = sqliteTable("agent_configuration", {
         .$defaultFn(() => crypto.randomUUID()),
     userId: text("userId")
         .notNull()
-        .unique()
         .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
     model: text("model").notNull().default(""),
+    systemPromptId: text("systemPromptId").references(() => systemPrompts.id),
     systemPrompt: text("systemPrompt").notNull().default("You are a helpful coding assistant."),
     temperature: integer("temperature").notNull().default(70), // scaled by 100
     updatedAt: integer("updatedAt", { mode: "timestamp_ms" }).notNull(),
@@ -164,6 +165,7 @@ export const skills = sqliteTable("skill", {
     userId: text("userId")
         .notNull()
         .references(() => users.id, { onDelete: "cascade" }),
+    agentId: text("agentId").references(() => agentConfigurations.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     description: text("description").notNull(),
     content: text("content").notNull(),
@@ -178,6 +180,7 @@ export const tools = sqliteTable("tool", {
     userId: text("userId")
         .notNull()
         .references(() => users.id, { onDelete: "cascade" }),
+    agentId: text("agentId").references(() => agentConfigurations.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     description: text("description").notNull(),
     schema: text("schema").notNull(), // stringified JSON schema
