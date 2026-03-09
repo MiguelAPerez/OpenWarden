@@ -33,6 +33,9 @@ export const Navbar = async () => {
                             <Link href="/code-search" className="text-sm font-medium text-foreground/60 hover:text-foreground transition-colors">
                                 Code Search
                             </Link>
+                            <Link href="/admin/jobs" className="text-sm font-medium text-foreground/60 hover:text-foreground transition-colors">
+                                Jobs
+                            </Link>
                             <AdminDropdown />
                         </div>
                     )}

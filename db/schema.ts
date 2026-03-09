@@ -295,6 +295,28 @@ export const benchmarkEntries = sqliteTable("benchmark_entry", {
     startedAt: integer("startedAt", { mode: "timestamp_ms" }),
     completedAt: integer("completedAt", { mode: "timestamp_ms" }),
 })
+export const codeEmbeddings = sqliteTable("code_embedding", {
+    id: text("id")
+        .primaryKey()
+        .$defaultFn(() => crypto.randomUUID()),
+    repositoryId: text("repositoryId")
+        .notNull()
+        .references(() => repositories.id, { onDelete: "cascade" }),
+    filePath: text("filePath").notNull(),
+    lineNumber: integer("lineNumber").notNull(),
+    contentChunk: text("contentChunk").notNull(),
+    embedding: text("embedding").notNull(), // JSON string array of floats
+    updatedAt: integer("updatedAt", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
+})
 
-
-
+export const backgroundJobs = sqliteTable("background_job", {
+    id: text("id")
+        .primaryKey()
+        .$defaultFn(() => crypto.randomUUID()),
+    name: text("name").notNull(), // e.g., 'semantic_index_all'
+    status: text("status", { enum: ["running", "completed", "failed"] }).notNull(),
+    startedAt: integer("startedAt", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
+    completedAt: integer("completedAt", { mode: "timestamp_ms" }),
+    error: text("error"),
+    details: text("details"), // JSON string for arbitrary metadata
+})

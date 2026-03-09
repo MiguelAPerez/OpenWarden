@@ -1,8 +1,8 @@
 "use server";
 
 import { db } from "@/../db";
-import { agentConfigurations } from "@/../db/schema";
-import { eq, and } from "drizzle-orm";
+import { agentConfigurations, backgroundJobs } from "@/../db/schema";
+import { eq, and, desc } from "drizzle-orm";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/auth";
 import { revalidatePath } from "next/cache";
@@ -58,4 +58,42 @@ export async function deleteAgent(id: string) {
 
     db.delete(agentConfigurations).where(and(eq(agentConfigurations.id, id), eq(agentConfigurations.userId, session.user.id))).run();
     revalidatePath("/agent");
+}
+
+export async function getBackgroundJobs() {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) return [];
+
+    return db.select().from(backgroundJobs).orderBy(desc(backgroundJobs.startedAt)).limit(50).all();
+}
+
+export async function triggerRepositoryAnalysis() {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) throw new Error("Unauthorized");
+
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { analyzeRepoDocs } = require("@/lib/analysis");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { runBackgroundJob } = require("@/lib/background-jobs");
+    
+    runBackgroundJob("repository_analysis_docs", async () => {
+        await analyzeRepoDocs();
+        return "Manual analysis complete";
+    }).catch(console.error);
+    
+    revalidatePath("/admin/jobs");
+    return { success: true };
+}
+
+export async function triggerSemanticIndexing() {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) throw new Error("Unauthorized");
+
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { semanticIndexing } = require("@/lib/semanticIndexing");
+    
+    semanticIndexing().catch(console.error);
+    
+    revalidatePath("/admin/jobs");
+    return { success: true };
 }

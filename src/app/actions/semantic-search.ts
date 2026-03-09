@@ -26,6 +26,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
 
     // Try modern endpoint first: /api/embed
     try {
+        console.log("Generating embedding for text:", text);
         const response = await fetch(`${config.url}/api/embed`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -127,9 +128,11 @@ export async function semanticSearch(options: SemanticSearchOptions) {
         };
     });
 
-    // Sort by similarity and take top N
+    // Sort by similarity and filter by threshold
+    const SIMILARITY_THRESHOLD = 0.45;
     results.sort((a, b) => b.similarity - a.similarity);
-    const topResults = results.slice(0, limit);
+    const filteredResults = results.filter(r => r.similarity >= SIMILARITY_THRESHOLD);
+    const topResults = filteredResults.slice(0, limit);
 
     // Group by repo
     const repoMap = new Map<string, {
@@ -163,14 +166,32 @@ export async function semanticSearch(options: SemanticSearchOptions) {
 
         const repo = repoMap.get(res.repositoryId);
         if (repo) {
+            // For semantic search, instead of highlighting the whole chunk,
+            // we'll try to find the most relevant line or just show it without a full highlight
+            // If the query has specific words, try to highlight the first occurrence
+            const queryWords = query.toLowerCase().split(/\W+/).filter(w => w.length > 3);
+            let matchStart = 0;
+            let matchEnd = 0;
+
+            if (queryWords.length > 0) {
+                const contentLower = res.contentChunk.toLowerCase();
+                for (const word of queryWords) {
+                    const idx = contentLower.indexOf(word);
+                    if (idx !== -1) {
+                        matchStart = idx;
+                        matchEnd = idx + word.length;
+                        break;
+                    }
+                }
+            }
+
             repo.matches.push({
                 filePath: res.filePath,
                 lineNumber: res.lineNumber,
                 lineContent: res.contentChunk,
                 similarity: res.similarity,
-                // Re-map for compatibility with current SearchUI types
-                matchStart: 0,
-                matchEnd: res.contentChunk.length
+                matchStart,
+                matchEnd
             });
         }
     }
