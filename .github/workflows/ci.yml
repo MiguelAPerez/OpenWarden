@@ -25,4 +25,12 @@ jobs:
       run: npm run lint
       
     - name: Run Tests
-      run: npm run test --if-present
+      run: npm run test:coverage
+      
+    - name: Jest coverage report
+      uses: artiomtr/jest-coverage-report-action@v2
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        test-script: npm test
+        annotations: failed-tests
+        package-manager: npm

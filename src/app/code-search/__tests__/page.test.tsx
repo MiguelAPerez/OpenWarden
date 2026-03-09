@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import CodeSearchPage from './page';
+import CodeSearchPage from '../page';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { searchCode } from '@/app/actions/search';
 import { semanticSearch } from '@/app/actions/semantic-search';
