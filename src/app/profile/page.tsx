@@ -1,27 +1,24 @@
 import React from "react";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/auth";
+import { UpdateProfileForm } from "@/components/UpdateProfileForm";
 
-export default function ProfilePage() {
+export default async function ProfilePage() {
+    const session = await getServerSession(authOptions);
+    const user = session?.user;
+
     return (
-        <div className="max-w-4xl mx-auto px-4 py-20">
+        <div className="max-w-2xl mx-auto px-4 py-20">
             <div className="glass p-8 rounded-2xl border border-border">
-                <h1 className="text-3xl font-bold mb-4">User Profile</h1>
-                <p className="text-foreground/60">This is a placeholder for the user profile page.</p>
+                <h1 className="text-3xl font-bold mb-1">User Profile</h1>
+                <p className="text-foreground/50 mb-8">Manage your account details and security settings.</p>
 
-                <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="p-6 rounded-xl bg-foreground/5 border border-border">
-                        <h2 className="text-lg font-semibold mb-2">Account Info</h2>
-                        <div className="space-y-3">
-                            <div>
-                                <label className="text-xs text-foreground/40 uppercase tracking-wider font-bold">Full Name</label>
-                                <p className="text-foreground/80">Miguel Perez</p>
-                            </div>
-                            <div>
-                                <label className="text-xs text-foreground/40 uppercase tracking-wider font-bold">Email Address</label>
-                                <p className="text-foreground/80">miguel@example.com</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <UpdateProfileForm
+                    userId={user?.id ?? ""}
+                    initialName={user?.name ?? ""}
+                    initialUsername={user?.username ?? ""}
+                    initialEmail={user?.email ?? ""}
+                />
             </div>
         </div>
     );
