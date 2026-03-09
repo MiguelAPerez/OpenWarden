@@ -66,7 +66,7 @@ export async function chatWithDoc(repoId: string, filePath: string | null, promp
 
     // 5. Construct System Prompt
     let fullSystemPrompt = personalityPrompt || "You are a helpful coding assistant.";
-    
+
     if (enabledSkills.length > 0) {
         fullSystemPrompt += "\n\nAvailable Skills:\n" + enabledSkills.map(s => `- ${s.name}: ${s.description}\n${s.content}`).join("\n\n");
     }
@@ -94,15 +94,17 @@ CRITICAL INSTRUCTIONS:
     if (!ollamaConfig) throw new Error("Ollama not configured in settings.");
 
     try {
+        const sendingMessages = [
+            { role: "system", content: fullSystemPrompt },
+            { role: "user", content: prompt }
+        ];
+        console.log(sendingMessages);
         const response = await fetch(`${ollamaConfig.url}/api/chat`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 model: agentConfig.model,
-                messages: [
-                    { role: "system", content: fullSystemPrompt },
-                    { role: "user", content: prompt }
-                ],
+                messages: sendingMessages,
                 stream: false,
                 options: {
                     temperature: agentConfig.temperature / 100
@@ -117,6 +119,7 @@ CRITICAL INSTRUCTIONS:
         const data = await response.json();
         const content = data.message.content;
 
+        console.log(content);
         // Try to parse as JSON if it looks like JSON
         if (content.trim().startsWith("{") && content.trim().endsWith("}")) {
             try {
@@ -133,6 +136,7 @@ CRITICAL INSTRUCTIONS:
             }
         }
 
+        console.log(content);
         return {
             message: content,
             redirect: null

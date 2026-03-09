@@ -17,21 +17,13 @@ export const AgentConfigForm = ({
     const [isSaving, setIsSaving] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [message, setMessage] = useState("");
-    const [ollamaModels, setOllamaModels] = useState<string[]>([]);
-
-    useEffect(() => {
-        setName(initialConfig?.name || "");
-        setModel(initialConfig?.model || "");
-        setSystemPromptId(initialConfig?.systemPromptId || "");
-        setTemperature(initialConfig?.temperature || 70);
-        setMessage("");
-    }, [initialConfig]);
+    const [ollamaModels, setOllamaModels] = useState<{ name: string; details: string | null }[]>([]);
 
     useEffect(() => {
         async function loadOllamaModels() {
             try {
                 const models = await getOllamaModels();
-                setOllamaModels(models.map(m => m.name));
+                setOllamaModels(models);
             } catch (err) {
                 console.error("Failed to load Ollama models", err);
             }
@@ -94,24 +86,43 @@ export const AgentConfigForm = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground/70">Model</label>
-                    <select
-                        value={model}
-                        onChange={(e) => setModel(e.target.value)}
-                        required
-                        className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
-                    >
-                        <option value="" disabled>Select a model...</option>
-                        {ollamaModels.length > 0 && (
-                            <optgroup label="Local (Ollama)">
-                                {ollamaModels.map(m => (
-                                    <option key={m} value={m}>{m}</option>
-                                ))}
+                    <div className="relative group/select">
+                        <select
+                            value={model}
+                            onChange={(e) => setModel(e.target.value)}
+                            required
+                            className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
+                        >
+                            <option value="" disabled>Select a model...</option>
+                            {ollamaModels.length > 0 && (
+                                <optgroup label="Local (Ollama)">
+                                    {ollamaModels.map(m => {
+                                        let labelSuffix = "";
+                                        try {
+                                            const details = JSON.parse(m.details || "{}");
+                                            const caps = details.capabilities || [];
+                                            const labels = [];
+                                            if (caps.includes("thinking")) labels.push("thinking");
+                                            if (caps.includes("tools") || caps.includes("tool_use")) labels.push("tools");
+                                            if (labels.length > 0) labelSuffix = ` (${labels.join(", ")})`;
+                                        } catch {}
+
+                                        return (
+                                            <option key={m.name} value={m.name}>
+                                                {m.name}{labelSuffix}
+                                            </option>
+                                        );
+                                    })}
+                                </optgroup>
+                            )}
+                            <optgroup label="Cloud Models (Coming Soon)">
+                                <option value="gpt-4" disabled>GPT-4</option>
                             </optgroup>
-                        )}
-                        <optgroup label="Cloud Models (Coming Soon)">
-                            <option value="gpt-4" disabled>GPT-4</option>
-                        </optgroup>
-                    </select>
+                        </select>
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-foreground/20 group-hover/select:text-foreground/40 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                        </div>
+                    </div>
                 </div>
 
                 <div className="space-y-2">

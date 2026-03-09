@@ -84,6 +84,7 @@ export const AgentPageClient = ({
                     <div className="mt-8 transition-all animate-in fade-in slide-in-from-bottom-2 duration-500">
                         {activeTab === "model" && (
                             <AgentConfigForm
+                                key={selectedAgentId || "new"}
                                 initialConfig={selectedAgent}
                                 systemPrompts={systemPrompts}
                             />
