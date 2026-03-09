@@ -3,7 +3,11 @@ name: CI
 on:
   push:
     branches: [ main ]
+    paths-ignore:
+      - '**.md'
   pull_request:
+    paths-ignore:
+      - '**.md'
 
 jobs:
   build-and-test:
@@ -42,10 +46,11 @@ jobs:
         badge-title: Coverage Badge
 
     - name: Update README with coverage badges
-      # if: github.ref == 'refs/heads/main'
-      uses: MishaKav/jest-coverage-comment@main
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        coverage-summary-path: ./coverage/coverage-summary.json
-        badge-actions-enabled: true
-        update-readme-with-badge: true
+      if: github.ref == 'refs/heads/main'
+      run: |
+        node scripts/update-coverage-badges.mjs
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git add README.md
+        git commit -m "docs: update coverage badges [skip ci]" || echo "No changes to commit"
+        git push
