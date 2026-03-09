@@ -26,7 +26,6 @@ export async function generateEmbedding(text: string): Promise<number[]> {
 
     // Try modern endpoint first: /api/embed
     try {
-        console.log("Generating embedding for text:", text);
         const response = await fetch(`${config.url}/api/embed`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -129,7 +128,7 @@ export async function semanticSearch(options: SemanticSearchOptions) {
     });
 
     // Sort by similarity and filter by threshold
-    const SIMILARITY_THRESHOLD = 0.45;
+    const SIMILARITY_THRESHOLD = 0.35; // Lowered for more "fuzzy" semantic feel
     results.sort((a, b) => b.similarity - a.similarity);
     const filteredResults = results.filter(r => r.similarity >= SIMILARITY_THRESHOLD);
     const topResults = filteredResults.slice(0, limit);
