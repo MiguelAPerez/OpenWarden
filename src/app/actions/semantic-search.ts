@@ -18,6 +18,8 @@ export interface SemanticSearchOptions {
     repoIds: string[];
     query: string;
     limit?: number;
+    includeExtensions?: string[];
+    excludePatterns?: string[];
 }
 
 export async function generateEmbedding(text: string): Promise<number[]> {
@@ -107,16 +109,29 @@ export async function semanticSearch(options: SemanticSearchOptions) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) throw new Error("Unauthorized");
 
-    const { repoIds, query, limit = 20 } = options;
+    const { repoIds, query, limit = 20, includeExtensions, excludePatterns } = options;
     if (!query.trim()) return [];
 
     const queryVector = await generateEmbedding(query);
 
     // Fetch embeddings for selected repos
-    const embeddings = db.select()
+    let embeddings = db.select()
         .from(codeEmbeddings)
         .where(inArray(codeEmbeddings.repositoryId, repoIds))
         .all();
+
+    // Filter by extensions and patterns if provided
+    if (includeExtensions || excludePatterns) {
+        embeddings = embeddings.filter(emb => {
+            if (includeExtensions && !includeExtensions.some(ext => emb.filePath.endsWith(ext))) {
+                return false;
+            }
+            if (excludePatterns && excludePatterns.some(pattern => emb.filePath.includes(pattern))) {
+                return false;
+            }
+            return true;
+        });
+    }
 
     const results = embeddings.map(emb => {
         const vector = JSON.parse(emb.embedding) as number[];
