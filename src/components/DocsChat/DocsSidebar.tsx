@@ -2,6 +2,8 @@
 
 import React, { useState } from "react";
 import { cloneOrUpdateRepository, getRepoMarkdownFiles } from "@/app/actions/files";
+import { semanticSearch } from "@/app/actions/semantic-search";
+import { RepoSearchResult } from "@/app/actions/search";
 
 export interface Repository {
     id: string;
@@ -134,8 +136,46 @@ export default function DocsSidebar({
     onSelectFile
 }: DocsSidebarProps) {
     const [searchQuery, setSearchQuery] = useState("");
+    const [debouncedQuery, setDebouncedQuery] = useState("");
+    const [semanticResults, setSemanticResults] = useState<RepoSearchResult[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
     const [repoFiles, setRepoFiles] = useState<Record<string, string[]>>({});
     const [loadingRepo, setLoadingRepo] = useState<string | null>(null);
+
+    // Debounce search query
+    React.useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedQuery(searchQuery);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
+
+    // Perform semantic search
+    React.useEffect(() => {
+        if (!debouncedQuery.trim()) {
+            setSemanticResults([]);
+            return;
+        }
+
+        setIsSearching(true);
+        semanticSearch({
+            repoIds: repositories.map(r => r.id),
+            query: debouncedQuery,
+            limit: 10,
+            includeExtensions: [".md", ".mdx"],
+            excludePatterns: [".agent", "AGENT.md"]
+        })
+        .then(results => {
+            setSemanticResults(results as RepoSearchResult[]);
+        })
+        .catch(err => {
+            console.error("Semantic search failed:", err);
+            setSemanticResults([]);
+        })
+        .finally(() => {
+            setIsSearching(false);
+        });
+    }, [debouncedQuery, repositories]);
 
     const filteredRepos = repositories.filter(repo => 
         repo.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -189,8 +229,60 @@ export default function DocsSidebar({
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                 />
+                {isSearching && (
+                    <div className="mt-2 flex items-center gap-2 text-[10px] text-foreground/40 animate-pulse">
+                        <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                        Searching docs...
+                    </div>
+                )}
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                {/* Semantic Results Section */}
+                {semanticResults.length > 0 && searchQuery.trim() && (
+                    <div className="space-y-3 pb-4 border-b border-border/10">
+                        <h3 className="text-xs font-medium text-primary uppercase tracking-wider pl-2 flex items-center gap-1.5">
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                            </svg>
+                            Suggested Files
+                        </h3>
+                        <div className="space-y-1">
+                            {semanticResults.map(repoRes => (
+                                repoRes.matches.map((match, i) => (
+                                    <button
+                                        key={`${repoRes.repoId}-${match.filePath}-${i}`}
+                                        onClick={() => {
+                                            const repo = repositories.find(r => r.id === repoRes.repoId);
+                                            if (repo) {
+                                                onSelectRepo(repo);
+                                                onSelectFile(match.filePath);
+                                            }
+                                        }}
+                                        className={`w-full text-left px-3 py-2 rounded-lg transition-colors group ${
+                                            selectedFilePath === match.filePath && selectedRepo?.id === repoRes.repoId
+                                                ? "bg-primary/10 text-primary"
+                                                : "hover:bg-foreground/5"
+                                        }`}
+                                    >
+                                        <div className="flex justify-between items-start mb-0.5">
+                                            <span className="text-xs font-medium truncate flex-1 leading-tight mr-2">
+                                                {match.filePath.split('/').pop()?.replace(/\.mdx?$/, "")}
+                                            </span>
+                                            {match.similarity && (
+                                                <span className="text-[9px] font-bold text-primary/60 shrink-0 mt-0.5">
+                                                    {Math.round(match.similarity * 100)}%
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="text-[10px] text-foreground/40 truncate">
+                                            {repoRes.repoName} • {match.filePath.split('/').slice(0, -1).join('/') || '/'}
+                                        </div>
+                                    </button>
+                                ))
+                            ))}
+                        </div>
+                    </div>
+                )}
                 {Object.entries(groupedRepos).map(([group, repos]) => (
                     <div key={group}>
                         <h3 className="text-xs font-medium text-foreground/50 uppercase tracking-wider mb-2 pl-2">
