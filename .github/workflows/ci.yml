@@ -42,7 +42,7 @@ jobs:
         badge-title: Coverage Badge
 
     - name: Update README with coverage badges
-      if: github.ref == 'refs/heads/main-test'
+      # if: github.ref == 'refs/heads/main'
       uses: MishaKav/jest-coverage-comment@main
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
