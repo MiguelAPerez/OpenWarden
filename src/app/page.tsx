@@ -1,109 +1,99 @@
 import React from "react";
 import Link from "next/link";
-import { getCachedRepositories } from "@/app/actions/repositories";
-import { getAgentConfig } from "@/app/actions/config";
-import { getSkills } from "@/app/actions/skills";
-import { getTools } from "@/app/actions/tools";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/auth";
+import { redirect } from "next/navigation";
 
-export default async function Home() {
-  const repos = await getCachedRepositories();
-  const agentConfig = await getAgentConfig();
-  const skills = await getSkills();
-  const tools = await getTools();
+export default async function LandingPage() {
+  const session = await getServerSession(authOptions);
+
+  if (session) {
+    redirect("/dashboard");
+  }
 
   return (
-    <main className="flex min-h-screen flex-col items-center p-6 sm:p-24 relative overflow-hidden">
-      {/* Decorative background elements */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-blue-500/20 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] rounded-full bg-purple-500/20 blur-[120px] pointer-events-none" />
-
-      <div className="z-10 w-full max-w-5xl animate-fade-in mb-12">
-        <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4 bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/60 w-fit">
-          Dashboard
-        </h1>
-        <p className="text-lg text-foreground/60 max-w-2xl">
-          Overview of your active resources and configurations.
-        </p>
-      </div>
-
-      <div className="z-10 grid text-left w-full max-w-5xl gap-6 md:grid-cols-2 animate-slide-up">
-        {/* Repositories Directory Card */}
-        <Link
-          href="/repositories"
-          className="group relative rounded-3xl glass p-8 transition-all hover:bg-foreground/5 hover:border-border hover:-translate-y-1 block border border-border/50 overflow-hidden"
-        >
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-cyan-400 opacity-80" />
-          
-          <div className="flex items-start justify-between mb-6">
-            <div className="p-3 bg-blue-500/10 rounded-2xl">
-              <svg xmlns="http://www.w3.org/http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
-                <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/>
-              </svg>
-            </div>
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none text-blue-500 font-bold">
-              -&gt;
-            </span>
+    <div className="flex flex-col min-h-screen">
+      {/* Hero Section */}
+      <section className="relative pt-20 pb-32 overflow-hidden flex flex-col items-center justify-center border-b border-border/50">
+        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-blue-500/10 blur-[120px] pointer-events-none animate-pulse" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-purple-500/10 blur-[120px] pointer-events-none animate-pulse" />
+        
+        <div className="container px-4 mx-auto relative z-10 text-center">
+          <div className="inline-flex items-center px-4 py-1.5 mb-8 rounded-full border border-primary/20 bg-primary/5 text-primary text-sm font-medium animate-fade-in">
+            <span className="flex h-2 w-2 rounded-full bg-primary mr-2 animate-ping" />
+            Introducing Coding Agent v1.0
           </div>
-
-          <h2 className="mb-2 text-3xl font-bold tracking-tight text-foreground">
-            Repositories
-          </h2>
-          <p className="mb-6 mt-0 text-foreground/60 leading-relaxed group-hover:text-foreground/80 transition-colors">
-            Manage your Git repositories and synchronized codebases.
+          
+          <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-8 bg-clip-text text-transparent bg-gradient-to-b from-foreground to-foreground/50">
+            Build software with <br className="hidden md:block" />
+            <span className="text-primary italic">intelligence</span> at your side.
+          </h1>
+          
+          <p className="text-xl text-foreground/60 max-w-2xl mx-auto mb-12 leading-relaxed animate-slide-up">
+            The all-in-one platform for managing your codebase, automating workflows, and building with AI agents. Supercharge your development process today.
           </p>
           
-          <div className="flex items-center gap-4">
-            <div className="flex flex-col">
-              <span className="text-4xl font-extrabold text-foreground">{repos?.length || 0}</span>
-              <span className="text-xs uppercase tracking-wider text-foreground/50 font-semibold mt-1">Total Synced</span>
-            </div>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-slide-up">
+            <Link 
+              href="/register" 
+              className="px-8 py-4 bg-primary text-white font-bold rounded-2xl shadow-lg shadow-primary/20 hover:scale-105 transition-transform w-full sm:w-auto"
+            >
+              Get Started for Free
+            </Link>
+            <Link 
+              href="/login" 
+              className="px-8 py-4 glass border border-border/50 font-bold rounded-2xl hover:bg-foreground/5 transition-all w-full sm:w-auto"
+            >
+              Sign In
+            </Link>
           </div>
-        </Link>
+        </div>
+      </section>
 
-        {/* Agent Config Directory Card */}
-        <Link
-          href="/agent"
-          className="group relative rounded-3xl glass p-8 transition-all hover:bg-foreground/5 hover:border-border hover:-translate-y-1 block border border-border/50 overflow-hidden"
-        >
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-pink-400 opacity-80" />
+      {/* Features Grid */}
+      <section className="py-24 bg-background/50 relative z-10">
+        <div className="container px-4 mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold mb-4">Powerful capabilities</h2>
+            <p className="text-foreground/60">Everything you need to automate your development workflow.</p>
+          </div>
           
-          <div className="flex items-start justify-between mb-6">
-            <div className="p-3 bg-purple-500/10 rounded-2xl">
-               <svg xmlns="http://www.w3.org/http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-purple-500">
-                <rect width="18" height="18" x="3" y="3" rx="2"/>
-                <path d="M7 7h10"/><path d="M7 12h10"/><path d="M7 17h10"/>
-              </svg>
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="p-8 rounded-3xl glass border border-border/50 hover:border-primary/20 transition-all group">
+              <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center mb-6 text-blue-500 group-hover:scale-110 transition-transform">
+                <svg xmlns="http://www.w3.org/http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2H2v10h10V2z"/><path d="M22 2h-10v10h10V2z"/><path d="M12 12H2v10h10V12z"/><path d="M22 12h-10v10h10V12z"/></svg>
+              </div>
+              <h3 className="text-xl font-bold mb-3">Repository Management</h3>
+              <p className="text-foreground/60">Seamlessly sync and manage your Git repositories with built-in visualization tools.</p>
             </div>
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none text-purple-500 font-bold">
-              -&gt;
-            </span>
+            
+            <div className="p-8 rounded-3xl glass border border-border/50 hover:border-purple-500/20 transition-all group">
+              <div className="w-12 h-12 rounded-2xl bg-purple-500/10 flex items-center justify-center mb-6 text-purple-500 group-hover:scale-110 transition-transform">
+                <svg xmlns="http://www.w3.org/http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+              </div>
+              <h3 className="text-xl font-bold mb-3">AI Docs Chat</h3>
+              <p className="text-foreground/60">Ask questions about your codebase and get immediate, context-aware answers from our AI agents.</p>
+            </div>
+            
+            <div className="p-8 rounded-3xl glass border border-border/50 hover:border-orange-500/20 transition-all group">
+              <div className="w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center mb-6 text-orange-500 group-hover:scale-110 transition-transform">
+                <svg xmlns="http://www.w3.org/http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              </div>
+              <h3 className="text-xl font-bold mb-3">Evaluation Lab</h3>
+              <p className="text-foreground/60">Run benchmarks and evaluate your models to ensure the highest quality of completions.</p>
+            </div>
           </div>
+        </div>
+      </section>
 
-          <h2 className="mb-2 text-3xl font-bold tracking-tight text-foreground">
-            Agent Config
-          </h2>
-          <p className="mb-6 mt-0 text-foreground/60 leading-relaxed group-hover:text-foreground/80 transition-colors">
-            Configure system instructions, skills, and tools.
+      {/* Footer */}
+      <footer className="mt-auto py-12 border-t border-border/50">
+        <div className="container px-4 mx-auto text-center">
+          <p className="text-foreground/40 text-sm">
+            © {new Date().getFullYear()} Coding Agent. Built with ❤️ for developers.
           </p>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col overflow-hidden">
-              <span className="text-2xl font-bold text-foreground truncate" title={agentConfig?.model || "Not set"}>{agentConfig?.model || "Not set"}</span>
-              <span className="text-xs uppercase tracking-wider text-foreground/50 font-semibold mt-1">Active Model</span>
-            </div>
-            <div className="flex gap-6">
-              <div className="flex flex-col">
-                <span className="text-2xl font-bold text-foreground">{skills?.length || 0}</span>
-                <span className="text-xs uppercase tracking-wider text-foreground/50 font-semibold mt-1">Skills</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-2xl font-bold text-foreground">{tools?.length || 0}</span>
-                <span className="text-xs uppercase tracking-wider text-foreground/50 font-semibold mt-1">Tools</span>
-              </div>
-            </div>
-          </div>
-        </Link>
-      </div>
-    </main>
+        </div>
+      </footer>
+    </div>
   );
 }

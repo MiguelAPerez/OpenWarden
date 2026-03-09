@@ -22,15 +22,17 @@ export const Navbar = async () => {
                         </span>
                     </Link>
 
-                    <div className="hidden md:flex items-center gap-6">
-                        <Link href="/" className="text-sm font-medium text-foreground/60 hover:text-foreground transition-colors">
-                            Dashboard
-                        </Link>
-                        <Link href="/docs-chat" className="text-sm font-medium text-foreground/60 hover:text-foreground transition-colors">
-                            Docs Chat
-                        </Link>
-                        <AdminDropdown />
-                    </div>
+                    {session?.user && (
+                        <div className="hidden md:flex items-center gap-6">
+                            <Link href="/dashboard" className="text-sm font-medium text-foreground/60 hover:text-foreground transition-colors">
+                                Dashboard
+                            </Link>
+                            <Link href="/docs-chat" className="text-sm font-medium text-foreground/60 hover:text-foreground transition-colors">
+                                Docs Chat
+                            </Link>
+                            <AdminDropdown />
+                        </div>
+                    )}
 
                 </div>
 
