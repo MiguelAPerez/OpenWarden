@@ -38,6 +38,8 @@
   ],
   "exclude": [
     "node_modules",
-    "data"
+    "data",
+    "db/seed.ts",
+    "db/clear.ts"
   ]
 }

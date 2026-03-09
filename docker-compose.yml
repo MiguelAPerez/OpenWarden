@@ -1,0 +1,15 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    volumes:
+      - ./sqlite.db:/app/sqlite.db
+      - ./data:/app/data
+    environment:
+      - NODE_ENV=production
+    restart: always
