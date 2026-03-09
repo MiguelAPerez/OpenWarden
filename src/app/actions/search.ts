@@ -7,6 +7,7 @@ import { repositories } from "@/../db/schema";
 import { inArray } from "drizzle-orm";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/auth";
+import { isPathBlocked } from "@/lib/constants";
 
 const REPOS_BASE_DIR = path.join(process.cwd(), "data", "repos");
 
@@ -106,6 +107,11 @@ export async function searchCode(options: CodeSearchOptions): Promise<RepoSearch
 
                 const fullPath = path.join(dir, entry.name);
                 const relPath = path.relative(repoDir, fullPath);
+
+                // Apply centralized blocklist
+                if (isPathBlocked(relPath)) {
+                    continue;
+                }
 
                 // Exclude patterns
                 if (excludePatterns.some((p) => relPath.split(path.sep).includes(p) || entry.name === p)) {

@@ -9,6 +9,7 @@ import { repositories, giteaConfigurations } from "@/../db/schema";
 import { eq } from "drizzle-orm";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/auth";
+import { isPathBlocked, ALLOWLIST } from "@/lib/constants";
 
 const execAsync = promisify(exec);
 const REPOS_BASE_DIR = path.join(process.cwd(), "data", "repos");
@@ -87,8 +88,6 @@ export async function getRepoMarkdownFiles(repoId: string) {
     }
 
     const mdfiles: string[] = [];
-    const blocklist = [".agent", "AGENT.md"];
-    const allowlist = [".md", ".mdx"];
 
     async function walk(dir: string) {
         let files;
@@ -102,17 +101,16 @@ export async function getRepoMarkdownFiles(repoId: string) {
             const fullPath = path.join(dir, file.name);
             const relPath = path.relative(repoDir, fullPath);
 
-            // Apply blocklist checks
-            if (blocklist.some(blocked => relPath.startsWith(blocked) || file.name === blocked)) {
+            // Apply centralized blocklist
+            if (isPathBlocked(relPath)) {
                 continue;
             }
 
-            // Skip .git and node_modules
+            // Skip .git and node_modules (redundant but safe)
             if (file.isDirectory()) {
-                if (file.name === ".git" || file.name === "node_modules") continue;
                 await walk(fullPath);
             } else {
-                if (allowlist.some(allowed => file.name.endsWith(allowed))) {
+                if (ALLOWLIST.some(allowed => file.name.endsWith(allowed))) {
                     mdfiles.push(relPath);
                 }
             }
@@ -126,10 +124,21 @@ export async function getRepoMarkdownFiles(repoId: string) {
 export async function getRepoFileContent(repoId: string, filePath: string) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) throw new Error("Unauthorized");
+
+    // Security check: ensure path is not blocked
+    if (isPathBlocked(filePath)) {
+        throw new Error("Access denied: file is in blocklist.");
+    }
+
     return getRepoFileContentInternal(repoId, filePath, session.user.id);
 }
 
 export async function getRepoFileContentInternal(repoId: string, filePath: string, userId: string) {
+    // Security check: ensure path is not blocked
+    if (isPathBlocked(filePath)) {
+        throw new Error("Access denied: file is in blocklist.");
+    }
+
     const repo = db.select().from(repositories).where(eq(repositories.id, repoId)).get();
     if (!repo) throw new Error("Repository not found");
     if (repo.userId !== userId) throw new Error("Forbidden");

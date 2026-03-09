@@ -6,6 +6,7 @@ import path from "path";
 import { exec } from "child_process";
 import { promisify } from "util";
 import yaml from "js-yaml";
+import { isPathBlocked, ALLOWLIST } from "./constants";
 
 const execAsync = promisify(exec);
 const REPOS_BASE_DIR = path.join(process.cwd(), "data", "repos");
@@ -91,16 +92,21 @@ export async function analyzeRepoDocs(filter?: (repo: unknown) => boolean) {
                     tags?: string | string[];
                     keywords?: string | string[];
                 }
-
                 async function extractMetadata(dir: string) {
                     try {
                         const files = await fs.readdir(dir, { withFileTypes: true });
                         for (const file of files) {
                             const fullPath = path.join(dir, file.name);
-                            if (file.isDirectory() && file.name !== ".git" && file.name !== "node_modules") {
+                            const relPath = path.relative(repoDir, fullPath);
+
+                            // Apply centralized blocklist
+                            if (isPathBlocked(relPath)) {
+                                continue;
+                            }
+
+                            if (file.isDirectory()) {
                                 await extractMetadata(fullPath);
-                            } else if (file.name.endsWith(".md") || file.name.endsWith(".mdx")) {
-                                const relPath = path.relative(repoDir, fullPath);
+                            } else if (ALLOWLIST.some(ext => file.name.endsWith(ext))) {
                                 try {
                                     const content = await fs.readFile(fullPath, "utf-8");
                                     const frontmatterMatch = content.match(/^---\s*[\s\S]*?---\s*/);
