@@ -4,6 +4,7 @@ import React from "react";
 import { useTheme } from "@/context/ThemeContext";
 import GiteaConfiguration from "@/components/SystemSettings/GiteaConfiguration";
 import OllamaConfiguration from "@/components/SystemSettings/OllamaConfiguration";
+import GitHubConfiguration from "@/components/SystemSettings/GitHubConfiguration";
 
 export default function SettingsPage() {
     const { theme, toggleTheme, mounted } = useTheme();
@@ -48,6 +49,7 @@ export default function SettingsPage() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <GiteaConfiguration />
+                        <GitHubConfiguration />
                         <OllamaConfiguration />
                     </div>
                 </div>

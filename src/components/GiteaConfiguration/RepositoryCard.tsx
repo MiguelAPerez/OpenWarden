@@ -15,6 +15,8 @@ interface Repository {
     docsMetadata: Record<string, unknown>;
     agentMetadata: Record<string, unknown>;
     enabled: boolean;
+    githubConfigurationId?: string | null;
+    githubConfigName?: string | null;
 }
 
 interface RepositoryCardProps {
@@ -50,6 +52,11 @@ export default function RepositoryCard({ repo, onToggle }: RepositoryCardProps) 
                 {typeof repo.docsMetadata.type === "string" && (
                     <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
                         {repo.docsMetadata.type}
+                    </span>
+                )}
+                {repo.githubConfigName && (
+                    <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20 ml-2">
+                        {repo.githubConfigName}
                     </span>
                 )}
             </div>

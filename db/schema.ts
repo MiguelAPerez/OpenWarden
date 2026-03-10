@@ -106,6 +106,22 @@ export const ollamaConfigurations = sqliteTable("ollama_configuration", {
     updatedAt: integer("updatedAt", { mode: "timestamp_ms" }).notNull(),
 })
 
+export const githubConfigurations = sqliteTable("github_configuration", {
+    id: text("id")
+        .primaryKey()
+        .$defaultFn(() => crypto.randomUUID()),
+    userId: text("userId")
+        .notNull()
+        .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(), // Friendly name for this GitHub App config
+    appId: text("appId").notNull(),
+    clientId: text("clientId").notNull(),
+    clientSecret: text("clientSecret").notNull(),
+    privateKey: text("privateKey").notNull(),
+    installationId: text("installationId"), // Optional, can be fetched if needed
+    updatedAt: integer("updatedAt", { mode: "timestamp_ms" }).notNull(),
+})
+
 export const ollamaModels = sqliteTable("ollama_model", {
     id: text("id")
         .primaryKey()
@@ -142,6 +158,7 @@ export const repositories = sqliteTable("repository", {
     updatedAt: integer("updatedAt", { mode: "timestamp_ms" }).notNull(),
     cachedAt: integer("cachedAt", { mode: "timestamp_ms" }).notNull(),
     enabled: integer("enabled", { mode: "boolean" }).notNull().default(false),
+    githubConfigurationId: text("githubConfigurationId").references(() => githubConfigurations.id, { onDelete: "set null" }),
 })
 
 export const agentConfigurations = sqliteTable("agent_configuration", {
