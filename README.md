@@ -25,13 +25,27 @@ around self-hosted tools and AI models.
 
 ## Usage
 
-Start container:
+You can run the `ghcr.io/miguelaperez/coding-agent` image with docker:
 
 ```bash
 docker run -it --rm \
     -v $DATASTORE:/app/data \
     -p 3000:3000 \
-    coding-agent
+    ghcr.io/miguelaperez/coding-agent:latest
+```
+
+Enviorment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| DATABASE_URL | Path to the database file. | `./data/sqlite.db` |
+| NEXTAUTH_URL | URL of the application. | `http://localhost:3000` |
+| NEXTAUTH_SECRET | Secret key for NextAuth. | `super-secret-key-change-me` |
+
+or run with `--env-file`
+
+```bash
+cp .env.example .env
 ```
 
 Once started login and set your configurations: `http://localhost:3000`
