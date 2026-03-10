@@ -22,6 +22,9 @@ interface Repository {
 export default function RepositoryList({ initialRepos }: { initialRepos: Repository[] }) {
     const [search, setSearch] = useState("");
     const [sourceFilter, setSourceFilter] = useState<string>("all");
+    const [showOnlyEnabled, setShowOnlyEnabled] = useState(() =>
+        initialRepos.some((r) => r.enabled)
+    );
     const [enabledMap, setEnabledMap] = useState<Record<string, boolean>>(() =>
         Object.fromEntries(initialRepos.map((r) => [r.id, r.enabled]))
     );
@@ -29,7 +32,19 @@ export default function RepositoryList({ initialRepos }: { initialRepos: Reposit
 
     const handleToggle = (id: string, newEnabled: boolean) => {
         // Optimistic update
-        setEnabledMap((prev) => ({ ...prev, [id]: newEnabled }));
+        setEnabledMap((prev) => {
+            const next = { ...prev, [id]: newEnabled };
+            // Auto-toggle filter based on enabled count
+            const enabledCount = Object.values(next).filter(Boolean).length;
+            if (enabledCount === 0 && showOnlyEnabled) {
+                setShowOnlyEnabled(false);
+            } else if (enabledCount > 0 && !showOnlyEnabled && newEnabled) {
+                // If we just enabled the first one, or enabled one while filter was off,
+                // maybe we want to turn it on? The prompt says "have it on if one or more repos has been enabled"
+                setShowOnlyEnabled(true);
+            }
+            return next;
+        });
         startTransition(async () => {
             try {
                 await toggleRepositoryEnabled(id, newEnabled);
@@ -47,7 +62,8 @@ export default function RepositoryList({ initialRepos }: { initialRepos: Reposit
             repo.fullName.toLowerCase().includes(search.toLowerCase()) ||
             (repo.description?.toLowerCase() || "").includes(search.toLowerCase());
         const matchesSource = sourceFilter === "all" || repo.source === sourceFilter;
-        return matchesSearch && matchesSource;
+        const matchesEnabled = !showOnlyEnabled || repo.enabled;
+        return matchesSearch && matchesSource && matchesEnabled;
     });
 
     const sources = Array.from(new Set(initialRepos.map((r) => r.source)));
@@ -86,6 +102,24 @@ export default function RepositoryList({ initialRepos }: { initialRepos: Reposit
                             {source}
                         </button>
                     ))}
+                    
+                    <div className="h-6 w-px bg-border mx-2 hidden md:block" />
+
+                    <button
+                        onClick={() => setShowOnlyEnabled(!showOnlyEnabled)}
+                        disabled={enabledCount === 0}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all duration-200 border whitespace-nowrap ${
+                            showOnlyEnabled 
+                                ? "bg-primary/10 text-primary border-primary/30" 
+                                : "bg-foreground/5 text-foreground/60 border-border hover:border-primary/30"
+                        } ${enabledCount === 0 ? "opacity-50 cursor-not-allowed grayscale" : ""}`}
+                    >
+                        <span className={showOnlyEnabled ? "text-primary" : "text-foreground/40"}>
+                            {showOnlyEnabled ? "👁️" : "👁️‍🗨️"}
+                        </span>
+                        Enabled Only
+                    </button>
+
                     <span className="ml-2 text-xs text-foreground/40 whitespace-nowrap">
                         {enabledCount} / {initialRepos.length} enabled
                     </span>
