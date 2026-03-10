@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 // Since I can't use drizzle directly in a client component for all queries,
 // I'll need a server action to fetch the jobs.
-import { getBackgroundJobs, triggerRepositoryAnalysis, triggerSemanticIndexing } from "@/app/actions/config";
+import { getBackgroundJobs, triggerRepositoryAnalysis, triggerRepositorySync, triggerSemanticIndexing } from "@/app/actions/config";
 
 interface Job {
     id: string;
@@ -15,20 +15,7 @@ interface Job {
     details: string | null;
 }
 
-const REGISTERED_CRONS = [
-    { 
-        id: "repo_analysis",
-        name: "Repository Analysis (Docs)", 
-        schedule: "Every 30 minutes", 
-        description: "Clones and pulls updates for enabled repositories with docs topics." 
-    },
-    { 
-        id: "semantic_indexing",
-        name: "Semantic Indexing", 
-        schedule: "Every 5 hours", 
-        description: "Generates vector embeddings for enabled repositories." 
-    },
-];
+import { CRON_DEFINITIONS } from "@/lib/cron-constants";
 
 export default function JobsPage() {
     const [jobs, setJobs] = useState<Job[]>([]);
@@ -50,8 +37,10 @@ export default function JobsPage() {
     const handleRunNow = async (cronId: string) => {
         setRunningJobId(cronId);
         try {
-            if (cronId === "repo_analysis") {
+            if (cronId === "repository_analysis_docs") {
                 await triggerRepositoryAnalysis();
+            } else if (cronId === "repository_sync") {
+                await triggerRepositorySync();
             } else if (cronId === "semantic_indexing") {
                 await triggerSemanticIndexing();
             }
@@ -94,13 +83,13 @@ export default function JobsPage() {
                     Registered Crons
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {REGISTERED_CRONS.map((cron) => (
-                        <div key={cron.name} className="glass border border-border p-5 rounded-2xl flex flex-col gap-4">
+                    {CRON_DEFINITIONS.map((cron) => (
+                        <div key={cron.id} className="glass border border-border p-5 rounded-2xl flex flex-col gap-4">
                             <div className="flex flex-col gap-1">
                                 <div className="flex items-center justify-between">
                                     <span className="font-bold text-lg">{cron.name}</span>
                                     <span className="text-[10px] font-mono bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded-full uppercase tracking-tighter border border-blue-500/20">
-                                        {cron.schedule}
+                                        {cron.displaySchedule}
                                     </span>
                                 </div>
                                 <p className="text-sm text-foreground/50">{cron.description}</p>

@@ -21,6 +21,7 @@ This project is a premium Next.js application bootstrapped with the `nextjs_app_
   - [orm](orm.md): Details the Drizzle database schema, seeder process, and DB clearing instructions.
   - [context-groups](context-groups.md): Explains the benchmarking evaluation system and test case structures.
   - [docs-chat](docs-chat.md): Explains the DocsChat architecture and document parsing layout.
+  - [background-jobs](background-jobs.md): Instructions on how to add and manage scheduled cron tasks.
 
 ## Running Locally
 

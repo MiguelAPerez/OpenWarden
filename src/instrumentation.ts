@@ -10,31 +10,27 @@ export function register() {
         const { semanticIndexing } = require("./lib/semanticIndexing");
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const { runBackgroundJob } = require("./lib/background-jobs");
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { CRON_DEFINITIONS } = require("./lib/cron-constants");
 
-        // every 15 min: Repository Sync (Cloning/Pulling)
-        cron.schedule("*/15 * * * *", async () => {
-            console.log("Starting scheduled repository sync...");
-            await runBackgroundJob("repository_sync", async () => {
-                await syncRepositories();
-                return "Sync complete";
-            });
-        });
+        const jobs: Record<string, () => Promise<unknown>> = {
+            repository_sync: syncRepositories,
+            repository_analysis_docs: analyzeRepoDocs,
+            semantic_indexing: semanticIndexing,
+        };
 
-        // every 30 min: Repository Analysis (Docs)
-        cron.schedule("*/30 * * * *", async () => {
-            console.log("Starting scheduled repository analysis (docs)...");
-            await runBackgroundJob("repository_analysis_docs", async () => {
-                await analyzeRepoDocs();
-                return "Analysis complete";
-            });
-        });
+        for (const def of CRON_DEFINITIONS) {
+            const task = jobs[def.id];
+            if (task) {
+                cron.schedule(def.schedule, async () => {
+                    console.log(`Starting scheduled ${def.name}...`);
+                    await runBackgroundJob(def.id, async () => {
+                        return await task();
+                    });
+                });
+            }
+        }
 
-        // every 5 hours: Semantic Indexing
-        cron.schedule("0 */5 * * *", async () => {
-            console.log("Starting scheduled semantic indexing...");
-            await semanticIndexing();
-        });
-
-        console.log("Internal cron jobs registered");
+        console.log("Internal cron jobs registered from centralized definitions");
     }
 }

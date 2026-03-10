@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useTransition, useEffect, useMemo, useRef } from "react";
+import React, { useState, useCallback, useTransition, useEffect, useMemo, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { searchCode, RepoSearchResult } from "@/app/actions/search";
 import { semanticSearch } from "@/app/actions/semantic-search";
@@ -116,7 +116,7 @@ function RepoChip({ repo, selected, onToggle }: { repo: Repo; selected: boolean;
     );
 }
 
-export default function CodeSearchPage() {
+function SearchContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
@@ -561,6 +561,14 @@ export default function CodeSearchPage() {
                 </div>
             )}
         </div>
+    );
+}
+
+export default function CodeSearchPage() {
+    return (
+        <Suspense fallback={<div className="max-w-6xl mx-auto px-4 py-10">Loading search...</div>}>
+            <SearchContent />
+        </Suspense>
     );
 }
 

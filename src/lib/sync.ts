@@ -37,9 +37,9 @@ async function getAuthenticatedCloneUrl(repo: { url: string; source: string; use
 
                 if (installationId) {
                     const octokit = await app.getInstallationOctokit(Number(installationId));
-                    const { data: tokenData } = (await octokit.request("POST /app/installations/{installation_id}/access_tokens", {
+                    const { data: tokenData } = await octokit.request("POST /app/installations/{installation_id}/access_tokens", {
                         installation_id: Number(installationId),
-                    })) as { data: { token: string } };
+                    }) as { data: { token: string } };
                     const urlObj = new URL(repo.url);
                     urlObj.username = "x-access-token";
                     urlObj.password = tokenData.token;
