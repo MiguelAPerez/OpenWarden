@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/../db";
-import { repositories, giteaConfigurations } from "@/../db/schema";
+import { repositories, giteaConfigurations, githubConfigurations } from "@/../db/schema";
 import { eq, and } from "drizzle-orm";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/auth";
@@ -12,12 +12,36 @@ export async function getCachedRepositories() {
         throw new Error("Unauthorized");
     }
 
-    const repos = db.select().from(repositories).where(eq(repositories.userId, session.user.id)).all();
+    const repos = db.select({
+        id: repositories.id,
+        userId: repositories.userId,
+        source: repositories.source,
+        externalId: repositories.externalId,
+        name: repositories.name,
+        fullName: repositories.fullName,
+        description: repositories.description,
+        url: repositories.url,
+        stars: repositories.stars,
+        forks: repositories.forks,
+        language: repositories.language,
+        topics: repositories.topics,
+        lastAnalyzedHash: repositories.lastAnalyzedHash,
+        docsMetadata: repositories.docsMetadata,
+        agentMetadata: repositories.agentMetadata,
+        analyzedAt: repositories.analyzedAt,
+        updatedAt: repositories.updatedAt,
+        cachedAt: repositories.cachedAt,
+        enabled: repositories.enabled,
+        githubConfigurationId: repositories.githubConfigurationId,
+        githubConfigName: githubConfigurations.name,
+    }).from(repositories)
+    .leftJoin(githubConfigurations, eq(repositories.githubConfigurationId, githubConfigurations.id))
+    .where(eq(repositories.userId, session.user.id)).all();
 
     return repos.map(repo => ({
         ...repo,
-        docsMetadata: repo.docsMetadata ? JSON.parse(repo.docsMetadata) : {},
-        agentMetadata: repo.agentMetadata ? JSON.parse(repo.agentMetadata) : {}
+        docsMetadata: repo.docsMetadata ? JSON.parse(repo.docsMetadata as string) : {},
+        agentMetadata: repo.agentMetadata ? JSON.parse(repo.agentMetadata as string) : {}
     }));
 }
 
@@ -46,8 +70,8 @@ export async function syncRepositories() {
     // Sync Gitea
     await syncGitea(userId);
 
-    // Sync Github (Stub)
-    // await syncGithub(userId);
+    // Sync Github
+    await syncGithub(userId);
 
     return { success: true };
 }
@@ -127,5 +151,89 @@ async function syncGitea(userId: string) {
     } catch (error) {
         console.error("Error syncing Gitea:", error);
         throw error;
+    }
+}
+
+async function syncGithub(userId: string) {
+    const configs = db.select().from(githubConfigurations).where(eq(githubConfigurations.userId, userId)).all();
+
+    if (configs.length === 0) {
+        return;
+    }
+
+    const { App } = await import("octokit");
+
+    for (const config of configs) {
+        try {
+            const app = new App({
+                appId: config.appId,
+                privateKey: config.privateKey,
+            });
+
+            // Get all installations for this app
+            const { data: installations } = await app.octokit.request("GET /app/installations");
+
+            for (const installation of installations) {
+                const octokit = await app.getInstallationOctokit(installation.id);
+                
+                // Get repositories for this installation
+                // GitHub pagination might be needed for many repos, but for now we fetch the first page
+                const { data } = await octokit.request("GET /installation/repositories");
+                const githubRepos = data.repositories;
+
+                for (const gRepo of githubRepos) {
+                    const externalId = gRepo.id.toString();
+
+                    // Try to find existing repo
+                    const existing = db.select().from(repositories).where(
+                        and(
+                            eq(repositories.userId, userId),
+                            eq(repositories.source, "github"),
+                            eq(repositories.externalId, externalId)
+                        )
+                    ).get();
+
+                    const repoData = {
+                        userId,
+                        source: "github",
+                        externalId,
+                        name: gRepo.name,
+                        fullName: gRepo.full_name,
+                        description: gRepo.description || "",
+                        url: gRepo.html_url,
+                        stars: gRepo.stargazers_count || 0,
+                        forks: gRepo.forks_count || 0,
+                        language: gRepo.language || "",
+                        topics: JSON.stringify(gRepo.topics || []),
+                        updatedAt: new Date(gRepo.updated_at || new Date()),
+                        cachedAt: new Date(),
+                        githubConfigurationId: config.id,
+                    };
+
+                    const metadataValue = gRepo.name.includes("monorepo") ? "monorepo" : "package";
+                    const currentDocsMetadata = existing?.docsMetadata ? JSON.parse(existing.docsMetadata) : {};
+                    const updatedDocsMetadata = { ...currentDocsMetadata, type: metadataValue };
+
+                    if (existing) {
+                        db.update(repositories)
+                            .set({
+                                ...repoData,
+                                docsMetadata: JSON.stringify(updatedDocsMetadata)
+                            })
+                            .where(eq(repositories.id, existing.id))
+                            .run();
+                    } else {
+                        db.insert(repositories)
+                            .values({
+                                ...repoData,
+                                docsMetadata: JSON.stringify(updatedDocsMetadata)
+                            })
+                            .run();
+                    }
+                }
+            }
+        } catch (error) {
+            console.error(`Error syncing GitHub config ${config.name}:`, error);
+        }
     }
 }
