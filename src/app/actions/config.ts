@@ -85,6 +85,24 @@ export async function triggerRepositoryAnalysis() {
     return { success: true };
 }
 
+export async function triggerRepositorySync() {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) throw new Error("Unauthorized");
+
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { syncRepositories } = require("@/lib/sync");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { runBackgroundJob } = require("@/lib/background-jobs");
+    
+    runBackgroundJob("repository_sync", async () => {
+        await syncRepositories();
+        return "Manual sync complete";
+    }).catch(console.error);
+    
+    revalidatePath("/admin/jobs");
+    return { success: true };
+}
+
 export async function triggerSemanticIndexing() {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) throw new Error("Unauthorized");

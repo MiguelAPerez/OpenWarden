@@ -5,10 +5,11 @@ import path from "path";
 import { exec } from "child_process";
 import { promisify } from "util";
 import { db } from "@/../db";
-import { repositories, giteaConfigurations } from "@/../db/schema";
-import { eq } from "drizzle-orm";
+import { repositories, giteaConfigurations, githubConfigurations } from "@/../db/schema";
+import { eq, and } from "drizzle-orm";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/auth";
+import { App } from "octokit";
 import { isPathBlocked, ALLOWLIST } from "@/lib/constants";
 
 const execAsync = promisify(exec);
@@ -23,19 +24,68 @@ export async function cloneOrUpdateRepository(repoId: string) {
 
     if (repo.userId !== session.user.id) throw new Error("Forbidden");
 
-    // Get auth token if from Gitea
+    // Get auth token if from Gitea or GitHub
     let cloneUrl = repo.url;
     if (repo.source === "gitea") {
         const config = db.select().from(giteaConfigurations).where(eq(giteaConfigurations.userId, session.user.id)).get();
         if (config) {
-            // Construct authenticated URL: http://token@domain/path.git
-            // Parse repo.url (e.g., http://localhost:3000/miguel/foo)
             try {
                 const urlObj = new URL(repo.url);
-                urlObj.username = config.token; // Use token as username or just pass token in URL
+                urlObj.username = config.token;
                 cloneUrl = urlObj.toString();
             } catch (e) {
-                console.error("Failed to parse repo URL", e);
+                console.error("Failed to parse Gitea repo URL", e);
+            }
+        }
+    } else if (repo.source === "github") {
+        // Find associated GitHub App config
+        const configId = repo.githubConfigurationId;
+
+        // If not directly linked, try to find ANY config for this user (fallback)
+        let config;
+        if (configId) {
+            config = db.select().from(githubConfigurations).where(and(eq(githubConfigurations.id, configId), eq(githubConfigurations.userId, session.user.id))).get();
+        } else {
+            config = db.select().from(githubConfigurations).where(eq(githubConfigurations.userId, session.user.id)).get();
+        }
+
+        if (config) {
+            try {
+                const app = new App({
+                    appId: config.appId,
+                    privateKey: config.privateKey,
+                });
+
+                // GitHub App cloning usually uses: x-access-token:<token>@github.com/owner/repo.git
+                // We need an installation token. If installationId is saved, use it.
+                // Otherwise we might need to find it, but let's assume it's provided or we can try to fetch it.
+                let installationId = config.installationId;
+
+                if (!installationId) {
+                    // Try to find installation for the owner
+                    const { data: installations } = await app.octokit.request("GET /app/installations");
+                    // Simple heuristic: pick the first one or try to match owner if we can parse it from repo.fullName
+                    const owner = repo.fullName.split('/')[0];
+                    const inst = (installations as Array<{ id: number; account?: { login?: string } | null }>).find((i) => i.account?.login?.toLowerCase() === owner.toLowerCase()) || (installations as Array<{ id: number }>)[0];
+                    if (inst) {
+                        installationId = inst.id.toString();
+                    }
+                }
+
+                if (installationId) {
+                    const octokit = await app.getInstallationOctokit(Number(installationId));
+                    const { data: tokenData } = await octokit.request("POST /app/installations/{installation_id}/access_tokens", {
+                        installation_id: Number(installationId),
+                    }) as { data: { token: string } };
+
+                    const token = tokenData.token;
+                    const urlObj = new URL(repo.url);
+                    urlObj.username = "x-access-token";
+                    urlObj.password = token;
+                    cloneUrl = urlObj.toString();
+                }
+            } catch (e) {
+                console.error("Failed to get GitHub installation token", e);
             }
         }
     }

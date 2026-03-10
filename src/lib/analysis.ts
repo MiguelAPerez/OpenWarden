@@ -1,5 +1,5 @@
 import { db } from "@/../db";
-import { repositories, giteaConfigurations } from "@/../db/schema";
+import { repositories } from "@/../db/schema";
 import { eq } from "drizzle-orm";
 import fs from "fs/promises";
 import path from "path";
@@ -7,11 +7,12 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import yaml from "js-yaml";
 import { isPathBlocked, ALLOWLIST } from "./constants";
+import { syncRepositories } from "./sync";
 
 const execAsync = promisify(exec);
 const REPOS_BASE_DIR = path.join(process.cwd(), "data", "repos");
 
-export async function analyzeRepoDocs(filter?: (repo: unknown) => boolean) {
+export async function analyzeRepoDocs(repoIds?: string[]) {
     console.log("Starting repository analysis...");
 
     try {
@@ -23,50 +24,23 @@ export async function analyzeRepoDocs(filter?: (repo: unknown) => boolean) {
             return repo.enabled !== false && topics.some((t: string) => t === "docs" || t === "documentation");
         });
 
-        if (filter) {
-            allRepos = allRepos.filter(filter);
+        if (repoIds && repoIds.length > 0) {
+            allRepos = allRepos.filter(r => repoIds.includes(r.id));
         }
+
         console.log(`Found ${allRepos.length} repositories to analyze.`);
 
         for (const repo of allRepos) {
             console.log(`Analyzing ${repo.fullName}...`);
             try {
-                let cloneUrl = repo.url;
-                if (repo.source === "gitea") {
-                    const config = db.select().from(giteaConfigurations).where(eq(giteaConfigurations.userId, repo.userId)).get();
-                    if (config) {
-                        try {
-                            const urlObj = new URL(repo.url);
-                            urlObj.username = config.token;
-                            cloneUrl = urlObj.toString();
-                        } catch {
-                            console.error(`Failed to parse repo URL for ${repo.fullName}`);
-                        }
-                    }
-                }
-
-                await fs.mkdir(REPOS_BASE_DIR, { recursive: true });
                 const repoDir = path.join(REPOS_BASE_DIR, repo.fullName);
 
-                let isCloned = false;
                 try {
                     await fs.access(repoDir);
-                    console.log(`Pulling updates for ${repo.fullName}...`);
-                    await execAsync(`git -C "${repoDir}" pull`);
-                    isCloned = true;
                 } catch {
-                    const repoParentDir = path.dirname(repoDir);
-                    await fs.mkdir(repoParentDir, { recursive: true });
-                    try {
-                        console.log(`Cloning ${repo.fullName}...`);
-                        await execAsync(`git clone "${cloneUrl}.git" "${repoDir}"`);
-                        isCloned = true;
-                    } catch (e) {
-                        console.error(`Failed to clone ${repo.fullName}`, e);
-                    }
+                    console.warn(`Skipping ${repo.fullName}: Directory not found. Syncing first...`);
+                    await syncRepositories([repo.id]);
                 }
-
-                if (!isCloned) continue;
 
                 let currentHash = "none";
                 try {
@@ -83,7 +57,7 @@ export async function analyzeRepoDocs(filter?: (repo: unknown) => boolean) {
 
                 // Metadata extraction: Detailed file list with frontmatter
                 const fileList: Array<{ path: string; title?: string; description?: string; tags?: string[]; keywords?: string[] }> = [];
-                
+
                 interface FrontmatterDetails {
                     title?: string;
                     name?: string;
@@ -111,7 +85,7 @@ export async function analyzeRepoDocs(filter?: (repo: unknown) => boolean) {
                                     const content = await fs.readFile(fullPath, "utf-8");
                                     const frontmatterMatch = content.match(/^---\s*[\s\S]*?---\s*/);
                                     let details: FrontmatterDetails = {};
-                                    
+
                                     if (frontmatterMatch) {
                                         const yamlStr = frontmatterMatch[0].replace(/---/g, "").trim();
                                         details = (yaml.load(yamlStr) as FrontmatterDetails) || {};
