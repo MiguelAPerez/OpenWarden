@@ -76,6 +76,7 @@ export interface BenchmarkRun {
     contextGroupIds: string; // JSON string
     systemPromptIds: string | null; // JSON string array
     systemPromptSetIds: string | null; // JSON string array
+    parallelWorkers?: number;
     updatedAt: Date;
 }
 
@@ -85,8 +86,9 @@ export interface Benchmark {
     runId: string | null;
     name: string;
     status: "idle" | "running" | "completed" | "failed" | "cancelled";
-    startedAt: Date | null;
-    completedAt: Date | null;
+    startedAt?: Date | null;
+    completedAt?: Date | null;
+    parallelWorkers?: number;
     totalEntries: number;
     completedEntries: number;
 }

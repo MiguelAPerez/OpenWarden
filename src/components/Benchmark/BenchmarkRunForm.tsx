@@ -32,6 +32,7 @@ export const BenchmarkRunForm = ({
     const [selectedSystemPromptSets, setSelectedSystemPromptSets] = useState<string[]>(
         initialData?.systemPromptSetIds ? JSON.parse(initialData.systemPromptSetIds) : []
     );
+    const [parallelWorkers, setParallelWorkers] = useState<number>(initialData?.parallelWorkers || 1);
     const [runName, setRunName] = useState(initialData?.name || "");
     const [isSaving, setIsSaving] = useState(false);
     const [ollamaModels, setOllamaModels] = useState<{ name: string, capabilities: string[] }[]>([]);
@@ -106,7 +107,8 @@ export const BenchmarkRunForm = ({
                 models: selectedModels,
                 contextGroupIds: selectedContextGroups,
                 systemPromptIds: selectedSystemPrompts,
-                systemPromptSetIds: selectedSystemPromptSets
+                systemPromptSetIds: selectedSystemPromptSets,
+                parallelWorkers
             });
             onSuccess();
         } catch {
@@ -136,14 +138,30 @@ export const BenchmarkRunForm = ({
             </div>
 
             <div className="space-y-6">
-                <div className="space-y-3">
-                    <label className="text-xs font-bold uppercase tracking-widest text-foreground/30 px-1">Run Name</label>
-                    <input
-                        className="w-full bg-background/50 border border-border/50 rounded-2xl px-6 py-4 focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all outline-none text-lg font-medium"
-                        placeholder="e.g., Code Gen Comparison v1"
-                        value={runName}
-                        onChange={e => setRunName(e.target.value)}
-                    />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                        <label className="text-xs font-bold uppercase tracking-widest text-foreground/30 px-1">Run Name</label>
+                        <input
+                            className="w-full bg-background/50 border border-border/50 rounded-2xl px-6 py-4 focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all outline-none text-lg font-medium"
+                            placeholder="e.g., Code Gen Comparison v1"
+                            value={runName}
+                            onChange={e => setRunName(e.target.value)}
+                        />
+                    </div>
+                
+                    <div className="space-y-3">
+                        <label className="text-xs font-bold uppercase tracking-widest text-foreground/30 px-1">Parallel Jobs (Concurrency)</label>
+                        <input
+                            type="number"
+                            min={1}
+                            max={20}
+                            className="w-full bg-background/50 border border-border/50 rounded-2xl px-6 py-4 focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all outline-none text-lg font-medium"
+                            placeholder="1"
+                            value={parallelWorkers}
+                            onChange={e => setParallelWorkers(Math.max(1, Math.min(20, parseInt(e.target.value) || 1)))}
+                        />
+                        <p className="text-[10px] text-foreground/40 px-2 italic">How many requests to trigger simultaneously. Max 20.</p>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

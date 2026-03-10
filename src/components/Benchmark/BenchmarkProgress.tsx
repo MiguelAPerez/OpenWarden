@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { getBenchmarkProgress, simulateBenchmarkStep, cancelBenchmark } from "@/app/actions/benchmarks";
+import { getBenchmarkProgress, cancelBenchmark } from "@/app/actions/benchmarks";
 import { Benchmark, BenchmarkEntry } from "@/types/agent";
 import { useRouter } from "next/navigation";
 import { getOllamaModels } from "@/app/actions/ollama";
@@ -61,24 +61,60 @@ export const BenchmarkProgress = ({
     }, [benchmark?.status, router]);
 
     // Simulate progress if it's running
+    const activeFetches = React.useRef(0);
     useEffect(() => {
         let isActive = true;
-        if (benchmark?.status === "running") {
-            const tick = async () => {
-                if (!isActive) return;
-                const res = await simulateBenchmarkStep(benchmark.id);
-                const data = await getBenchmarkProgress(benchmark.id);
-                if (isActive && data) {
-                    setBenchmark(data as (Benchmark & { entries: BenchmarkEntry[] }) | null);
-                    if (!res.finished && data.status === "running") {
-                        setTimeout(tick, 1000); // 1s loop for snappier transitions
+        let timeoutId: NodeJS.Timeout;
+
+        const checkAndSpawn = () => {
+            if (!isActive || benchmark?.status !== "running") return;
+            
+            const limit = benchmark.parallelWorkers || 1;
+            
+            while (activeFetches.current < limit) {
+                activeFetches.current++;
+                
+                // Fire and forget fetch loop
+                (async () => {
+                    try {
+                        await fetch('/api/benchmark/step', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ benchmarkId: benchmark.id })
+                        });
+                        
+                        // Optimistic UI update immediately after an item finishes
+                        const data = await getBenchmarkProgress(benchmark.id);
+                        if (isActive && data) {
+                            setBenchmark(data as (Benchmark & { entries: BenchmarkEntry[] }) | null);
+                        }
+                    } catch (err) {
+                        console.error("Fetch step err:", err);
+                        // Brief pause on error so we don't spam if backend is dead
+                        await new Promise(r => setTimeout(r, 2000));
+                    } finally {
+                        activeFetches.current--;
+                        if (isActive) {
+                            // Immediately prompt coordinator to fill the gap
+                            checkAndSpawn();
+                        }
                     }
-                }
-            };
-            setTimeout(tick, 1000);
+                })();
+            }
+            
+            // Backup self-heal in case any loop completely stalled out (e.g. timeout)
+            timeoutId = setTimeout(checkAndSpawn, 2000);
+        };
+
+        if (benchmark?.status === "running") {
+            checkAndSpawn();
         }
-        return () => { isActive = false; };
-    }, [benchmark?.id, benchmark?.status]);
+
+        return () => { 
+            isActive = false; 
+            clearTimeout(timeoutId);
+        };
+    }, [benchmark?.id, benchmark?.status, benchmark?.parallelWorkers]);
 
     const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
     const [collapsedModels, setCollapsedModels] = useState<Record<string, boolean>>({});

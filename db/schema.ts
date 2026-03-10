@@ -267,6 +267,7 @@ export const benchmarkRuns = sqliteTable("benchmark_run", {
     contextGroupIds: text("contextGroupIds").notNull(), // JSON array of context group IDs
     systemPromptIds: text("systemPromptIds"), // JSON array of independent system prompt IDs
     systemPromptSetIds: text("systemPromptSetIds"), // JSON array of prompt set IDs
+    parallelWorkers: integer("parallelWorkers").notNull().default(1),
     updatedAt: integer("updatedAt", { mode: "timestamp_ms" }).notNull(),
 })
 
@@ -283,6 +284,7 @@ export const benchmarks = sqliteTable("benchmark", {
     status: text("status", { enum: ["idle", "running", "completed", "failed", "cancelled"] }).notNull().default("idle"),
     startedAt: integer("startedAt", { mode: "timestamp_ms" }),
     completedAt: integer("completedAt", { mode: "timestamp_ms" }),
+    parallelWorkers: integer("parallelWorkers").notNull().default(1),
     totalEntries: integer("totalEntries").notNull().default(0),
     completedEntries: integer("completedEntries").notNull().default(0),
 })

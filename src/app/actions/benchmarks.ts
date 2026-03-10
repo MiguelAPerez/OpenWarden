@@ -91,6 +91,7 @@ export async function saveBenchmarkRun(data: {
     contextGroupIds: string[];
     systemPromptIds?: string[];
     systemPromptSetIds?: string[];
+    parallelWorkers?: number;
 }) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) throw new Error("Unauthorized");
@@ -102,6 +103,7 @@ export async function saveBenchmarkRun(data: {
         contextGroupIds: JSON.stringify(data.contextGroupIds),
         systemPromptIds: data.systemPromptIds ? JSON.stringify(data.systemPromptIds) : null,
         systemPromptSetIds: data.systemPromptSetIds ? JSON.stringify(data.systemPromptSetIds) : null,
+        parallelWorkers: data.parallelWorkers || 1,
         updatedAt: now,
     };
 
@@ -176,6 +178,7 @@ export async function triggerBenchmark(runId: string) {
             name: run.name,
             status: "running",
             startedAt: now,
+            parallelWorkers: run.parallelWorkers || 1,
             totalEntries: 0,
             completedEntries: 0,
         })
@@ -305,6 +308,7 @@ export async function runBenchmark(name: string, models: string[], contextGroupI
             name: name,
             status: "running",
             startedAt: now,
+            parallelWorkers: 1, // Defaulting to 1 for ad-hoc runs
             totalEntries: models.length * contextGroupIds.length,
             completedEntries: 0,
         })
@@ -388,15 +392,34 @@ export async function simulateBenchmarkStep(benchmarkId: string) {
         return { finished: true };
     }
 
-    const allEntries = db.select()
+    const currentRunning = db.select()
         .from(benchmarkEntries)
-        .where(eq(benchmarkEntries.benchmarkId, benchmarkId))
-        .all();
+        .where(
+            and(
+                eq(benchmarkEntries.benchmarkId, benchmarkId),
+                eq(benchmarkEntries.status, "running")
+            )
+        ).all();
 
-    const nextPreparingEntry = allEntries.find(e => e.status === "preparing");
+    if (currentRunning.length >= (benchmark.parallelWorkers || 1)) {
+        return { finished: false, throttled: true };
+    }
 
-    if (nextPreparingEntry) {
-        const cg = db.select().from(contextGroups).where(eq(contextGroups.id, nextPreparingEntry.contextGroupId)).get();
+    const nextPendingEntryList = db.select()
+        .from(benchmarkEntries)
+        .where(
+            and(
+                eq(benchmarkEntries.benchmarkId, benchmarkId),
+                eq(benchmarkEntries.status, "pending")
+            )
+        ).limit(1).all();
+
+    const nextPendingEntry = nextPendingEntryList[0];
+
+    // Atomically claim the pending entry to prevent multiple concurrent requests grabbing it
+    if (nextPendingEntry) {
+
+        const cg = db.select().from(contextGroups).where(eq(contextGroups.id, nextPendingEntry.contextGroupId)).get();
 
         if (!cg) throw new Error("Context group not found");
 
@@ -407,15 +430,15 @@ export async function simulateBenchmarkStep(benchmarkId: string) {
         let systemContext = cg.systemContext || "";
         let variationName = null;
 
-        if (nextPreparingEntry.systemPromptId) {
-            const sp = db.select().from(systemPrompts).where(eq(systemPrompts.id, nextPreparingEntry.systemPromptId)).get();
+        if (nextPendingEntry.systemPromptId) {
+            const sp = db.select().from(systemPrompts).where(eq(systemPrompts.id, nextPendingEntry.systemPromptId)).get();
             if (sp) {
                 systemContext = sp.content;
                 variationName = sp.name;
             }
-        } else if (nextPreparingEntry.metrics) {
+        } else if (nextPendingEntry.metrics) {
             try {
-                const pending = JSON.parse(nextPreparingEntry.metrics);
+                const pending = JSON.parse(nextPendingEntry.metrics);
                 if (pending.variation) {
                     systemContext = pending.variation.systemPrompt;
                     variationName = pending.variation.name;
@@ -424,10 +447,20 @@ export async function simulateBenchmarkStep(benchmarkId: string) {
         }
 
         const startedAt = new Date();
-        db.update(benchmarkEntries)
+        const updateResult = db.update(benchmarkEntries)
             .set({ status: "running", startedAt, category, prompt })
-            .where(eq(benchmarkEntries.id, nextPreparingEntry.id))
+            .where(
+                and(
+                    eq(benchmarkEntries.id, nextPendingEntry.id),
+                    eq(benchmarkEntries.status, "pending")
+                )
+            )
             .run();
+
+        // If 0 rows were updated, someone else grabbed it
+        if (updateResult.changes === 0) {
+            return { finished: false };
+        }
 
         let output = "";
         let duration = 0;
@@ -439,7 +472,7 @@ export async function simulateBenchmarkStep(benchmarkId: string) {
             }
 
             const requestBody = {
-                model: nextPreparingEntry.model,
+                model: nextPendingEntry.model,
                 prompt: prompt,
                 system: systemContext,
                 stream: false,
@@ -454,7 +487,7 @@ export async function simulateBenchmarkStep(benchmarkId: string) {
                 },
                 body: JSON.stringify(requestBody),
                 cache: "no-store",
-                signal: AbortSignal.timeout(120000),
+                signal: AbortSignal.timeout(300000),
             });
 
             duration = Date.now() - startTime;
@@ -520,7 +553,7 @@ export async function simulateBenchmarkStep(benchmarkId: string) {
                 systemContext,
                 metrics: JSON.stringify({
                     expectationResults: matchDetails,
-                    modelName: nextPreparingEntry.model,
+                    modelName: nextPendingEntry.model,
                     throughput: duration > 0 ? Math.round(output.length / (duration / 1000)) : 0,
                     responseSize: output.length,
                     responseSizeBytes: output.length,
@@ -528,7 +561,7 @@ export async function simulateBenchmarkStep(benchmarkId: string) {
                     variationName
                 })
             })
-            .where(eq(benchmarkEntries.id, nextPreparingEntry.id))
+            .where(eq(benchmarkEntries.id, nextPendingEntry.id))
             .run();
 
         const bench = db.select().from(benchmarks).where(eq(benchmarks.id, benchmarkId)).get();
@@ -543,25 +576,29 @@ export async function simulateBenchmarkStep(benchmarkId: string) {
         return { finished: false };
     }
 
-    const nextPendingEntry = allEntries.find(e => e.status === "pending");
+    // If there are no pending items, check if any are still running
+    const runningEntries = db.select()
+        .from(benchmarkEntries)
+        .where(
+            and(
+                eq(benchmarkEntries.benchmarkId, benchmarkId),
+                eq(benchmarkEntries.status, "running")
+            )
+        ).limit(1).all();
 
-    if (!nextPendingEntry) {
-        db.update(benchmarks)
-            .set({ status: "completed", completedAt: new Date() })
-            .where(eq(benchmarks.id, benchmarkId))
-            .run();
+    if (runningEntries.length > 0) {
+        // Other parallel workers are still processing jobs, so we shouldn't complete the benchmark yet.
+        // However, this specific worker loop is done, so it can rest.
         return { finished: true };
     }
 
-    const cgPrep = db.select().from(contextGroups).where(eq(contextGroups.id, nextPendingEntry.contextGroupId)).get();
-
-    db.update(benchmarkEntries)
-        .set({ status: "preparing", category: cgPrep?.category || "Uncategorized" })
-        .where(eq(benchmarkEntries.id, nextPendingEntry.id))
+    // If no pending AND no running jobs, we mark the entire benchmark as completed.
+    db.update(benchmarks)
+        .set({ status: "completed", completedAt: new Date() })
+        .where(eq(benchmarks.id, benchmarkId))
         .run();
 
-    revalidatePath("/evaluation-lab");
-    return { finished: false };
+    return { finished: true };
 }
 
 export async function getCompletedBenchmarks() {
