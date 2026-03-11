@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useRef, useEffect } from "react";
-import Editor, { useMonaco } from "@monaco-editor/react";
+import React, { useEffect } from "react";
+import Editor from "@monaco-editor/react";
 import { Tab } from "../WorkspaceClient";
 
 interface EditorAreaProps {
@@ -22,8 +22,6 @@ export default function EditorArea({
     onSaveFile
 }: EditorAreaProps) {
     const activeTab = tabs.find(t => t.path === activeTabPath);
-    const monaco = useMonaco();
-
     // Setup global keyboard shortcut for Save
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -106,6 +104,18 @@ export default function EditorArea({
                         value={activeTab.content}
                         theme="vs-dark"
                         onChange={(val) => onContentChange(activeTab.path, val || "")}
+                        beforeMount={(monaco) => {
+                            // Disable semantic validation (e.g. "Cannot find module")
+                            // since the editor runs in the browser without node_modules context
+                            monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+                                noSemanticValidation: true,
+                                noSyntaxValidation: false,
+                            });
+                            monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+                                noSemanticValidation: true,
+                                noSyntaxValidation: false,
+                            });
+                        }}
                         options={{
                             minimap: { enabled: false },
                             fontSize: 14,

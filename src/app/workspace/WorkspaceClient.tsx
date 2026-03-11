@@ -196,7 +196,7 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
                     
                     <PanelResizeHandle className="w-1 bg-border hover:bg-primary/50 transition-colors" />
                     
-                    <Panel minSize={30}>
+                    <Panel defaultSize={55} minSize={30}>
                         <EditorArea 
                             tabs={openTabs}
                             activeTabPath={activeTabPath}
