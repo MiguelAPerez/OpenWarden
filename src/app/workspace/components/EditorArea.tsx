@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useEffect } from "react";
-import Editor from "@monaco-editor/react";
+import React, { useEffect, useRef, useState } from "react";
+import Editor, { Monaco } from "@monaco-editor/react";
+import { diffLines } from "diff";
 import { Tab } from "../WorkspaceClient";
+import RevertPrompt, { DiffBlock } from "./RevertPrompt";
 
 interface EditorAreaProps {
     tabs: Tab[];
@@ -21,18 +23,105 @@ export default function EditorArea({
     onContentChange,
     onSaveFile
 }: EditorAreaProps) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const editorRef = useRef<any>(null);
+    const monacoRef = useRef<Monaco | null>(null);
+    const decorationsRef = useRef<string[]>([]);
+    const diffBlocksRef = useRef<DiffBlock[]>([]);
+
+    const [editorMountCount, setEditorMountCount] = useState(0);
+    const [revertPrompt, setRevertPrompt] = useState<DiffBlock | null>(null);
+
     const activeTab = tabs.find(t => t.path === activeTabPath);
-    // Setup global keyboard shortcut for Save
+    // Setup global keyboard shortcut for Save and Escape
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if ((e.ctrlKey || e.metaKey) && e.key === "s") {
                 e.preventDefault();
                 if (activeTabPath) onSaveFile(activeTabPath);
             }
+            if (e.key === "Escape" && revertPrompt) {
+                setRevertPrompt(null);
+            }
         };
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [activeTabPath, onSaveFile]);
+    }, [activeTabPath, onSaveFile, revertPrompt]);
+
+    // Update diff decorations when content or git content changes
+    useEffect(() => {
+        if (!editorRef.current || !monacoRef.current || !activeTab) return;
+
+        const editor = editorRef.current;
+        const monaco = monacoRef.current;
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const decorations: any[] = [];
+        const newBlocks: DiffBlock[] = [];
+
+        if (activeTab.gitHeadContent !== null) {
+            const diffs = diffLines(activeTab.gitHeadContent, activeTab.content || "");
+            let currentLine = 1;
+
+            for (let i = 0; i < diffs.length; i++) {
+                const part = diffs[i];
+
+                if (part.removed) {
+                    if (i + 1 < diffs.length && diffs[i + 1].added) {
+                        const addedPart = diffs[i + 1];
+                        const start = currentLine;
+                        const end = currentLine + addedPart.count! - 1;
+
+                        newBlocks.push({ type: 'modified', currStart: start, currEnd: end, origValue: part.value });
+
+                        decorations.push({
+                            range: new monaco.Range(start, 1, end, 1),
+                            options: {
+                                isWholeLine: false,
+                                linesDecorationsClassName: "git-diff-modified cursor-pointer hover:opacity-80",
+                                marginClassName: "git-diff-modified-margin cursor-pointer hover:opacity-80"
+                            }
+                        });
+                        currentLine += addedPart.count!;
+                        i++; // skip next added part
+                    } else {
+                        const lineToMark = Math.max(1, currentLine - 1);
+                        newBlocks.push({ type: 'removed', currStart: lineToMark, currEnd: lineToMark, origValue: part.value });
+
+                        decorations.push({
+                            range: new monaco.Range(lineToMark, 1, lineToMark, 1),
+                            options: {
+                                isWholeLine: false,
+                                linesDecorationsClassName: "git-diff-removed cursor-pointer hover:opacity-80",
+                                marginClassName: "git-diff-removed-margin cursor-pointer hover:opacity-80"
+                            }
+                        });
+                    }
+                } else if (part.added) {
+                    const start = currentLine;
+                    const end = currentLine + part.count! - 1;
+
+                    newBlocks.push({ type: 'added', currStart: start, currEnd: end, origValue: '' });
+
+                    decorations.push({
+                        range: new monaco.Range(start, 1, end, 1),
+                        options: {
+                            isWholeLine: false,
+                            linesDecorationsClassName: "git-diff-added cursor-pointer hover:opacity-80",
+                            marginClassName: "git-diff-added-margin cursor-pointer hover:opacity-80"
+                        }
+                    });
+                    currentLine += part.count!;
+                } else {
+                    currentLine += part.count!;
+                }
+            }
+        }
+
+        diffBlocksRef.current = newBlocks;
+        decorationsRef.current = editor.deltaDecorations(decorationsRef.current, decorations);
+
+    }, [activeTab, activeTab?.content, activeTab?.gitHeadContent, activeTab?.path, editorMountCount]);
 
     if (tabs.length === 0) {
         return (
@@ -52,17 +141,113 @@ export default function EditorArea({
             case "js": case "jsx": return "javascript";
             case "json": return "json";
             case "md": case "mdx": return "markdown";
-            case "css": return "css";
-            case "html": return "html";
+            case "css": case "scss": return "css";
+            case "html": case "htm": return "html";
             case "py": return "python";
             case "go": return "go";
             case "rs": return "rust";
-            default: return "plaintext";
+            case "java": return "java";
+            case "c": case "cpp": case "h": case "hpp": return "cpp";
+            case "sh": case "bash": return "shell";
+            case "yml": case "yaml": return "yaml";
+            case "sql": return "sql";
+            case "xml": return "xml";
+            case "php": return "php";
+            default:
+                if (path.toLowerCase().includes("dockerfile")) return "dockerfile";
+                return "plaintext";
         }
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const revertBlock = (editor: any, block: DiffBlock) => {
+        const model = editor.getModel();
+        if (!model || !monacoRef.current) return;
+
+        let range;
+        let text = block.origValue;
+
+        if (block.type === 'removed') {
+            const maxCol = model.getLineMaxColumn(block.currEnd);
+            range = new monacoRef.current.Range(block.currEnd, maxCol, block.currEnd, maxCol);
+            text = '\n' + text.replace(/\n$/, '');
+        } else if (block.type === 'added') {
+            if (block.currStart > 1) {
+                const prevMax = model.getLineMaxColumn(block.currStart - 1);
+                const maxCol = model.getLineMaxColumn(block.currEnd);
+                range = new monacoRef.current.Range(block.currStart - 1, prevMax, block.currEnd, maxCol);
+            } else {
+                const lineCount = model.getLineCount();
+                if (block.currEnd < lineCount) {
+                    range = new monacoRef.current.Range(block.currStart, 1, block.currEnd + 1, 1);
+                } else {
+                    const maxCol = model.getLineMaxColumn(block.currEnd);
+                    range = new monacoRef.current.Range(block.currStart, 1, block.currEnd, maxCol);
+                }
+            }
+            text = "";
+        } else {
+            const maxCol = model.getLineMaxColumn(block.currEnd);
+            range = new monacoRef.current.Range(block.currStart, 1, block.currEnd, maxCol);
+            text = text.replace(/\n$/, '');
+        }
+
+        editor.executeEdits('revert-git-change', [{
+            range: range,
+            text: text,
+            forceMoveMarkers: true
+        }]);
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handleEditorMount = (editor: any, monaco: Monaco) => {
+        editorRef.current = editor;
+        monacoRef.current = monaco;
+        setEditorMountCount(c => c + 1);
+
+        editor.addAction({
+            id: 'revert-git-change',
+            label: 'Revert Git Change',
+            contextMenuGroupId: 'navigation',
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            run: (ed: any) => {
+                const pos = ed.getPosition();
+                if (!pos) return;
+                const block = diffBlocksRef.current.find(b => pos.lineNumber >= b.currStart && pos.lineNumber <= b.currEnd);
+                if (block) setRevertPrompt(block);
+            }
+        });
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        editor.onMouseDown((e: any) => {
+            // Target types: 2 (GUTTER_GLYPH_MARGIN), 3 (GUTTER_LINE_NUMBERS), 4 (GUTTER_LINE_DECORATIONS)
+            if (e.target.type === 2 || e.target.type === 3 || e.target.type === 4 || e.target.type === 6) {
+                const pos = e.target.position;
+                if (!pos) return;
+                const block = diffBlocksRef.current.find(b => pos.lineNumber >= b.currStart && pos.lineNumber <= b.currEnd);
+                if (block) {
+                    setRevertPrompt(block);
+                }
+            }
+        });
     };
 
     return (
         <div className="flex flex-col h-full bg-[#1e1e1e]">
+            <style>{`
+                .git-diff-added-margin {
+                    border-left: 3px solid #2ea043;
+                    margin-left: 5px;
+                }
+                .git-diff-removed-margin {
+                    border-left: 3px solid #f85149;
+                    margin-left: 5px;
+                }
+                .git-diff-modified-margin {
+                    border-left: 3px solid #3b82f6;
+                    margin-left: 5px;
+                }
+            `}</style>
             {/* Tabs Header */}
             <div className="flex overflow-x-auto bg-[#252526] scrollbar-hide border-b border-[#3c3c3c] flex-shrink-0 relative z-10">
                 {tabs.map(tab => {
@@ -116,6 +301,7 @@ export default function EditorArea({
                                 noSyntaxValidation: false,
                             });
                         }}
+                        onMount={handleEditorMount}
                         options={{
                             minimap: { enabled: false },
                             fontSize: 14,
@@ -126,6 +312,18 @@ export default function EditorArea({
                         }}
                     />
                 ) : null}
+
+                {/* Revert Confirmation Popup */}
+                <RevertPrompt 
+                    prompt={revertPrompt} 
+                    onCancel={() => setRevertPrompt(null)} 
+                    onConfirm={(block) => {
+                        if (editorRef.current) {
+                            revertBlock(editorRef.current, block);
+                        }
+                        setRevertPrompt(null);
+                    }} 
+                />
             </div>
         </div>
     );

@@ -14,7 +14,8 @@ import {
     getRepoFileTree,
     getWorkspaceFileContent,
     saveWorkspaceFile,
-    getWorkspaceChangedFiles
+    getWorkspaceChangedFiles,
+    getGitFileContent
 } from "@/app/actions/workspace";
 
 interface Repo {
@@ -35,6 +36,7 @@ export interface Tab {
     path: string;
     content: string;
     originalContent: string;
+    gitHeadContent: string | null;
     isDirty: boolean;
 }
 
@@ -122,11 +124,16 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
         }
 
         try {
-            const content = await getWorkspaceFileContent(selectedRepoId, path);
+            const [content, gitHeadContent] = await Promise.all([
+                getWorkspaceFileContent(selectedRepoId, path).catch(() => ""),
+                getGitFileContent(selectedRepoId, path).catch(() => null)
+            ]);
+
             const newTab: Tab = {
                 path,
                 content,
                 originalContent: content,
+                gitHeadContent,
                 isDirty: false
             };
             setOpenTabs(prev => [...prev, newTab]);

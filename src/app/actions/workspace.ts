@@ -278,3 +278,25 @@ export async function getWorkspaceChangedFiles(repoId: string) {
         return [];
     }
 }
+
+// Gets original file content from git HEAD
+export async function getGitFileContent(repoId: string, filePath: string) {
+    const user = await getUserSession();
+    if (isPathBlocked(filePath)) throw new Error("Access denied: file is in blocklist.");
+
+    const repo = db.select().from(repositories).where(eq(repositories.id, repoId)).get();
+    if (!repo) throw new Error("Repository not found");
+
+    const workspaceRepoDir = path.join(WORKSPACES_BASE_DIR, user.id, repo.fullName);
+    
+    // Convert OS specific path to git format (forward slashes)
+    const gitPath = filePath.split(path.sep).join('/');
+    
+    try {
+        const { stdout } = await execAsync(`git -C "${workspaceRepoDir}" show "HEAD:${gitPath}"`, { maxBuffer: 10 * 1024 * 1024 });
+        return stdout;
+    } catch {
+        // File might be untracked/new
+        return null;
+    }
+}
