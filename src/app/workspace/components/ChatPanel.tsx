@@ -3,10 +3,11 @@
 import React from "react";
 
 interface ChatPanelProps {
-    changedFiles: { path: string, status: string }[];
+    contextFiles: string[];
+    onRemoveContext: (path: string) => void;
 }
 
-export default function ChatPanel({ changedFiles }: ChatPanelProps) {
+export default function ChatPanel({ contextFiles, onRemoveContext }: ChatPanelProps) {
     return (
         <div className="flex flex-col h-full bg-background">
             <div className="p-3 border-b border-border bg-foreground/[0.02]">
@@ -24,24 +25,25 @@ export default function ChatPanel({ changedFiles }: ChatPanelProps) {
             </div>
 
             {/* Changed Files Footer Area */}
-            {changedFiles.length > 0 && (
+            {contextFiles.length > 0 && (
                 <div className="border-t border-border p-3 bg-foreground/[0.02]">
                     <h4 className="text-xs font-semibold text-foreground/50 uppercase tracking-wider mb-2">In Context</h4>
                     <div className="flex gap-2 flex-wrap max-h-32 overflow-y-auto">
-                        {changedFiles.map(file => (
+                        {contextFiles.map(filePath => (
                             <div 
-                                key={file.path} 
-                                className="flex items-center gap-1.5 px-2 py-1 rounded bg-foreground/5"
-                                title={file.path}
+                                key={filePath} 
+                                className="group flex items-center gap-1.5 pl-2 pr-1 py-1 rounded-full bg-foreground/10 border border-foreground/10 hover:border-foreground/20 transition-colors"
+                                title={filePath}
                             >
-                                <span className={`text-xs font-bold leading-none w-3 text-center
-                                    ${file.status.includes('M') ? 'text-blue-500' : 'text-green-500'}
-                                `}>
-                                    {file.status.trim().charAt(0)}
-                                </span>
                                 <span className="text-xs text-foreground/80 truncate max-w-[120px]">
-                                    {file.path.split("/").pop()}
+                                    {filePath.split("/").pop()}
                                 </span>
+                                <button 
+                                    onClick={() => onRemoveContext(filePath)}
+                                    className="w-4 h-4 rounded-full flex items-center justify-center opacity-50 hover:opacity-100 hover:bg-foreground/20 text-xs leading-none"
+                                >
+                                    ×
+                                </button>
                             </div>
                         ))}
                     </div>

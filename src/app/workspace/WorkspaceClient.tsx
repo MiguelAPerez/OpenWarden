@@ -6,12 +6,13 @@ import WorkspaceTopBar from "./components/WorkspaceTopBar";
 import FileTree from "./components/FileTree";
 import EditorArea from "./components/EditorArea";
 import ChatPanel from "./components/ChatPanel";
-import { 
-    initWorkspace, 
-    getRepoBranches, 
-    checkoutBranch, 
-    getRepoFileTree, 
-    getWorkspaceFileContent, 
+
+import {
+    initWorkspace,
+    getRepoBranches,
+    checkoutBranch,
+    getRepoFileTree,
+    getWorkspaceFileContent,
     saveWorkspaceFile,
     getWorkspaceChangedFiles
 } from "@/app/actions/workspace";
@@ -42,12 +43,14 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
     const [selectedRepoId, setSelectedRepoId] = useState<string>(initialRepos[0]?.id || "");
     const [branches, setBranches] = useState<string[]>([]);
     const [selectedBranch, setSelectedBranch] = useState<string>("main");
-    
+
     const [fileTree, setFileTree] = useState<FileNode[]>([]);
     const [openTabs, setOpenTabs] = useState<Tab[]>([]);
     const [activeTabPath, setActiveTabPath] = useState<string | null>(null);
-    const [changedFiles, setChangedFiles] = useState<{path: string, status: string}[]>([]);
-    
+    const [changedFiles, setChangedFiles] = useState<{ path: string, status: string }[]>([]);
+    // Files used as reference by our agent
+    const [contextFiles, setContextFiles] = useState<string[]>([]);
+
     const [isLoadingInit, setIsLoadingInit] = useState(false);
 
     const loadChangedFiles = useCallback(async (repoId: string) => {
@@ -60,17 +63,17 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
         if (!selectedRepoId) return;
 
         let active = true;
-        
+
         async function loadRepoEnv() {
             setIsLoadingInit(true);
             try {
                 await initWorkspace(selectedRepoId);
                 if (!active) return;
-                
+
                 const bs = await getRepoBranches(selectedRepoId);
                 if (!active) return;
                 setBranches(bs);
-                
+
                 const initialBranch = bs.includes("main") ? "main" : (bs[0] || "main");
                 setSelectedBranch(initialBranch);
             } catch (e) {
@@ -79,7 +82,7 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
                 if (active) setIsLoadingInit(false);
             }
         }
-        
+
         loadRepoEnv();
 
         return () => { active = false; };
@@ -111,6 +114,7 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
     }, [selectedRepoId, selectedBranch, isLoadingInit, loadChangedFiles]);
 
     const handleFileSelect = async (path: string) => {
+
         const existingTab = openTabs.find(t => t.path === path);
         if (existingTab) {
             setActiveTabPath(path);
@@ -173,7 +177,7 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
 
     return (
         <div className="flex flex-col flex-1 h-full bg-background border-t border-border">
-            <WorkspaceTopBar 
+            <WorkspaceTopBar
                 repos={repos}
                 selectedRepoId={selectedRepoId}
                 onSelectRepo={setSelectedRepoId}
@@ -188,16 +192,16 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                     </div>
                 )}
-                
+
                 <PanelGroup orientation="horizontal">
                     <Panel defaultSize={20} minSize={10} className="border-r border-border bg-foreground/[0.02]">
                         <FileTree tree={fileTree} onSelectFile={handleFileSelect} changedFiles={changedFiles} />
                     </Panel>
-                    
+
                     <PanelResizeHandle className="w-1 bg-border hover:bg-primary/50 transition-colors" />
-                    
+
                     <Panel defaultSize={55} minSize={30}>
-                        <EditorArea 
+                        <EditorArea
                             tabs={openTabs}
                             activeTabPath={activeTabPath}
                             onTabSelect={setActiveTabPath}
@@ -206,11 +210,14 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
                             onSaveFile={handleSaveFile}
                         />
                     </Panel>
-                    
+
                     <PanelResizeHandle className="w-1 bg-border hover:bg-primary/50 transition-colors" />
-                    
+
                     <Panel defaultSize={25} minSize={15} className="border-l border-border bg-foreground/[0.02]">
-                        <ChatPanel changedFiles={changedFiles} />
+                        <ChatPanel
+                            contextFiles={contextFiles}
+                            onRemoveContext={(path: string) => setContextFiles(prev => prev.filter(p => p !== path))}
+                        />
                     </Panel>
                 </PanelGroup>
             </div>

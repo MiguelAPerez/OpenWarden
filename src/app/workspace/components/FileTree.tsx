@@ -5,7 +5,7 @@ import { FileNode } from "../WorkspaceClient";
 
 interface FileTreeProps {
     tree: FileNode[];
-    changedFiles?: {path: string, status: string}[];
+    changedFiles?: { path: string, status: string }[];
     onSelectFile: (path: string) => void;
 }
 
@@ -21,8 +21,8 @@ export default function FileTree({ tree, changedFiles = [], onSelectFile }: File
                     <div className="text-xs font-semibold text-foreground/50 uppercase tracking-wider mb-2 px-2">Local Changes</div>
                     <div className="max-h-40 overflow-y-auto">
                         {changedFiles.map(file => (
-                            <div 
-                                key={file.path} 
+                            <div
+                                key={file.path}
                                 className="flex items-center gap-1.5 px-2 py-1 hover:bg-foreground/5 cursor-pointer rounded text-sm text-foreground/80"
                                 onClick={() => onSelectFile(file.path)}
                                 title={file.path}
@@ -49,7 +49,7 @@ export default function FileTree({ tree, changedFiles = [], onSelectFile }: File
     );
 }
 
-function TreeNode({ node, level, onSelectFile, changedFiles }: { node: FileNode; level: number; onSelectFile: (path: string) => void; changedFiles: {path: string, status: string}[] }) {
+function TreeNode({ node, level, onSelectFile, changedFiles }: { node: FileNode; level: number; onSelectFile: (path: string) => void; changedFiles: { path: string, status: string }[] }) {
     const [isOpen, setIsOpen] = useState(false);
 
     const isDir = node.type === "directory";
@@ -65,9 +65,9 @@ function TreeNode({ node, level, onSelectFile, changedFiles }: { node: FileNode;
 
     return (
         <div>
-            <div 
+            <div
                 className={`flex items-center justify-between py-1 px-2 hover:bg-foreground/5 cursor-pointer rounded text-sm text-foreground/80`}
-                style={{ paddingLeft: `${ level * 12 + 8 }px` }}
+                style={{ paddingLeft: `${level * 12 + 8}px` }}
                 onClick={handleClick}
             >
                 <div className="flex items-center gap-2 overflow-hidden">
