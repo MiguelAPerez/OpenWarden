@@ -5,9 +5,18 @@ import React from "react";
 interface ChatPanelProps {
     contextFiles: string[];
     onRemoveContext: (path: string) => void;
+    onSendMessage: (message: string) => void;
 }
 
-export default function ChatPanel({ contextFiles, onRemoveContext }: ChatPanelProps) {
+export default function ChatPanel({ contextFiles, onRemoveContext, onSendMessage }: ChatPanelProps) {
+    const [inputValue, setInputValue] = React.useState("");
+
+    const handleSend = () => {
+        if (!inputValue.trim()) return;
+        onSendMessage(inputValue);
+        setInputValue("");
+    };
+
     return (
         <div className="flex flex-col h-full bg-background">
             <div className="p-3 border-b border-border bg-foreground/[0.02]">
@@ -55,10 +64,21 @@ export default function ChatPanel({ contextFiles, onRemoveContext }: ChatPanelPr
                 <div className="relative">
                     <input 
                         type="text" 
+                        value={inputValue}
+                        onChange={(e) => setInputValue(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSend();
+                            }
+                        }}
                         placeholder="Ask Copilot..." 
                         className="w-full bg-foreground/5 border border-border rounded-lg pl-3 pr-10 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                     />
-                    <button className="absolute right-2 top-1.5 p-1 rounded hover:bg-foreground/10 text-primary">
+                    <button 
+                        onClick={handleSend}
+                        className="absolute right-2 top-1.5 p-1 rounded hover:bg-foreground/10 text-primary"
+                    >
                         <span className="text-xs font-bold">↑</span>
                     </button>
                 </div>
