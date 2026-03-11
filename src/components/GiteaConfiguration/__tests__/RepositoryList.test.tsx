@@ -1,7 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import RepositoryList from '../RepositoryList';
-import * as repoActions from '@/app/actions/repositories';
 
 // Mock Server Actions
 jest.mock('@/app/actions/repositories', () => ({
@@ -48,7 +47,7 @@ describe('RepositoryList Component', () => {
   it('initializes "Enabled Only" toggle to ON if any repo is enabled', () => {
     render(<RepositoryList initialRepos={mockRepos} />);
     
-    const toggleBtn = screen.getByText(/Enabled Only/i);
+
     // When ON, it has specific classes. We can check if only the enabled one is shown.
     expect(screen.getByText('repo1')).toBeInTheDocument();
     expect(screen.queryByText('repo2')).not.toBeInTheDocument();
