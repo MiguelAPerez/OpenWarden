@@ -162,16 +162,16 @@ export const EvaluationQueue = ({
                                                         {isCatDone && <span className="text-[10px] text-green-500">✓</span>}
                                                     </span>
                                                     <div className="flex-1 h-[1px] bg-border/20 mx-2" />
-                                                    
+
                                                     {isSubCollapsed && !isCatDone && (
                                                         <div className="w-12 h-1 bg-foreground/5 rounded-full overflow-hidden mr-2">
-                                                            <div 
-                                                                className="h-full bg-primary/40 transition-all duration-500" 
+                                                            <div
+                                                                className="h-full bg-primary/40 transition-all duration-500"
                                                                 style={{ width: `${catProgress}%` }}
                                                             />
                                                         </div>
                                                     )}
-                                                    
+
                                                     <span className="text-[9px] font-bold text-foreground/20">
                                                         {catCompleted}/{catTotal}
                                                     </span>
@@ -208,7 +208,7 @@ export const EvaluationQueue = ({
                                                                                     className="font-bold text-foreground/80 hover:text-primary transition-colors flex items-center gap-2 group/jump"
                                                                                 >
                                                                                     {testName}
-                                                                                    <span className="opacity-0 group-hover/jump:opacity-100 transition-opacity text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded uppercase font-black">Jump to manager</span>
+                                                                                    <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded uppercase font-black">Jump to manager</span>
                                                                                 </button>
                                                                                 {(() => {
                                                                                     try {
