@@ -7,20 +7,26 @@ import FileTree from "./components/FileTree";
 import EditorArea from "./components/EditorArea";
 import ChatPanel from "./components/ChatPanel";
 
+import { initWorkspace } from "@/app/actions/workspace";
 import {
-    initWorkspace,
     getRepoBranches,
     checkoutBranch,
+    createBranch,
+    commitChanges,
+    pushChanges,
+    stageFile,
+    unstageFile
+} from "@/app/actions/git";
+import {
     getRepoFileTree,
     getWorkspaceFileContent,
     saveWorkspaceFile,
     getWorkspaceChangedFiles,
     getGitFileContent,
     revertWorkspaceFile,
-    createBranch,
-    commitChanges,
-    pushChanges
-} from "@/app/actions/workspace";
+    FileNode
+} from "@/app/actions/workspace-files";
+
 
 export interface FileChange {
     startLine: number;
@@ -36,19 +42,11 @@ export interface PendingSuggestion {
     messages: any[];
     filesChanged: Record<string, FileChange>;
 }
-
 interface Repo {
     id: string;
     fullName: string;
     name: string;
     source: string;
-}
-
-export interface FileNode {
-    name: string;
-    path: string;
-    type: "file" | "directory";
-    children?: FileNode[];
 }
 
 export interface Tab {
@@ -376,6 +374,24 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
         }
     };
 
+    const handleStageFile = async (filePath: string) => {
+        try {
+            await stageFile(selectedRepoId, filePath);
+            await loadChangedFiles(selectedRepoId);
+        } catch (e) {
+            console.error("Stage failed", e);
+        }
+    };
+
+    const handleUnstageFile = async (filePath: string) => {
+        try {
+            await unstageFile(selectedRepoId, filePath);
+            await loadChangedFiles(selectedRepoId);
+        } catch (e) {
+            console.error("Unstage failed", e);
+        }
+    };
+
     return (
         <div className="flex flex-col flex-1 h-full bg-background border-t border-border">
             <WorkspaceTopBar
@@ -399,7 +415,14 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
                     <Panel defaultSize={20} minSize={10} className="border-r border-border bg-foreground/[0.02]">
                         <div className="flex flex-col h-full">
                             <div className="flex-1 overflow-hidden">
-                                <FileTree tree={fileTree} onSelectFile={handleFileSelect} changedFiles={changedFiles} onRevertFile={handleRevertFile} />
+                                <FileTree 
+                                    tree={fileTree} 
+                                    onSelectFile={handleFileSelect} 
+                                    changedFiles={changedFiles} 
+                                    onRevertFile={handleRevertFile}
+                                    onStageFile={handleStageFile}
+                                    onUnstageFile={handleUnstageFile}
+                                />
                             </div>
                             
                             {selectedRepoId && (

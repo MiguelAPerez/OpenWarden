@@ -1,14 +1,13 @@
+import { initWorkspace } from "../workspace";
+import { getRepoBranches, checkoutBranch } from "../git";
 import {
-    initWorkspace,
-    getRepoBranches,
-    checkoutBranch,
     getWorkspaceFileContent,
     saveWorkspaceFile,
     getWorkspaceChangedFiles,
     getRepoFileTree,
     getGitFileContent,
     revertWorkspaceFile
-} from "../workspace";
+} from "../workspace-files";
 
 
 // Mock external dependencies
@@ -159,7 +158,7 @@ describe("Workspace Actions", () => {
             });
             const changes = await getWorkspaceChangedFiles("repo-1");
             expect(changes).toEqual([
-                { status: "M", path: "src/index.ts" },
+                { status: " M", path: "src/index.ts" },
                 { status: "??", path: "new-file.txt" }
             ]);
         });
