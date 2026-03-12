@@ -14,6 +14,9 @@ jest.mock("@/app/actions/workspace", () => ({
     getWorkspaceChangedFiles: jest.fn(),
     getGitFileContent: jest.fn(),
     revertWorkspaceFile: jest.fn(),
+    createBranch: jest.fn(),
+    commitChanges: jest.fn(),
+    pushChanges: jest.fn(),
 }));
 
 // Mock react-resizable-panels
@@ -34,7 +37,13 @@ jest.mock("react-resizable-panels", () => {
 // Mock components to avoid deep rendering issues
 // Mock components to avoid deep rendering issues
 jest.mock("../components/WorkspaceTopBar", () => {
-    const MockTopBar = () => <div data-testid="top-bar" />;
+    const MockTopBar = ({ onSelectRepo, onCreateBranch, selectedRepoId }: { onSelectRepo: (id: string) => void, onCreateBranch: (name: string) => void, selectedRepoId: string }) => (
+        <div data-testid="top-bar">
+            <button onClick={() => onSelectRepo("repo-1")}>Select Repo 1</button>
+            <button onClick={() => onSelectRepo("repo-2")}>Select Repo 2</button>
+            {selectedRepoId && <button onClick={() => onCreateBranch("new-branch")}>Create Branch</button>}
+        </div>
+    );
     MockTopBar.displayName = "MockTopBar";
     return MockTopBar;
 });
@@ -86,8 +95,19 @@ describe("WorkspaceClient", () => {
         (workspaceActions.getWorkspaceChangedFiles as jest.Mock).mockResolvedValue([]);
     });
 
-    it("initializes workspace and loads branches on mount", async () => {
+    it("does not initialize workspace on mount if no repo is selected", async () => {
         render(<WorkspaceClient initialRepos={mockRepos} />);
+
+        // Should not call init until a repo is selected
+        expect(workspaceActions.initWorkspace).not.toHaveBeenCalled();
+    });
+
+    it("initializes workspace when a repository is selected", async () => {
+        render(<WorkspaceClient initialRepos={mockRepos} />);
+
+        await act(async () => {
+            fireEvent.click(screen.getByText("Select Repo 1"));
+        });
 
         await waitFor(() => {
             expect(workspaceActions.initWorkspace).toHaveBeenCalledWith("repo-1");
@@ -95,8 +115,12 @@ describe("WorkspaceClient", () => {
         });
     });
 
-    it("checks out branch and loads file tree", async () => {
+    it("checks out branch and loads file tree when repo is selected", async () => {
         render(<WorkspaceClient initialRepos={mockRepos} />);
+
+        await act(async () => {
+            fireEvent.click(screen.getByText("Select Repo 1"));
+        });
 
         await waitFor(() => {
             expect(workspaceActions.checkoutBranch).toHaveBeenCalledWith("repo-1", "main");
@@ -104,11 +128,41 @@ describe("WorkspaceClient", () => {
         });
     });
 
+    it("clears tabs when switching repositories", async () => {
+        (workspaceActions.getWorkspaceFileContent as jest.Mock).mockResolvedValue("file content");
+        (workspaceActions.getGitFileContent as jest.Mock).mockResolvedValue("git content");
+        render(<WorkspaceClient initialRepos={mockRepos} />);
+
+        // Select first repo
+        await act(async () => {
+            fireEvent.click(screen.getByText("Select Repo 1"));
+        });
+
+        // Open a file
+        await screen.findByTestId("file-tree");
+        await act(async () => {
+            fireEvent.click(screen.getByTestId("file-tree"));
+        });
+        await screen.findByText("Tabs: 1");
+
+        // Switch to second repo
+        await act(async () => {
+            fireEvent.click(screen.getByText("Select Repo 2"));
+        });
+
+        // Tabs should be cleared
+        await screen.findByText("Tabs: 0");
+    });
+
     it("opens a file tab and fetches content when a file is selected", async () => {
         (workspaceActions.getWorkspaceFileContent as jest.Mock).mockResolvedValue("file content");
         (workspaceActions.getGitFileContent as jest.Mock).mockResolvedValue("git content");
 
         render(<WorkspaceClient initialRepos={mockRepos} />);
+
+        await act(async () => {
+            fireEvent.click(screen.getByText("Select Repo 1"));
+        });
 
         await screen.findByTestId("file-tree");
         await act(async () => {
@@ -127,6 +181,10 @@ describe("WorkspaceClient", () => {
         (workspaceActions.saveWorkspaceFile as jest.Mock).mockResolvedValue({ success: true });
 
         render(<WorkspaceClient initialRepos={mockRepos} />);
+
+        await act(async () => {
+            fireEvent.click(screen.getByText("Select Repo 1"));
+        });
 
         await screen.findByTestId("file-tree");
         await act(async () => {
@@ -150,6 +208,10 @@ describe("WorkspaceClient", () => {
         (workspaceActions.saveWorkspaceFile as jest.Mock).mockResolvedValue({ success: true });
 
         render(<WorkspaceClient initialRepos={mockRepos} />);
+
+        await act(async () => {
+            fireEvent.click(screen.getByText("Select Repo 1"));
+        });
 
         await screen.findByTestId("file-tree");
         await act(async () => {
@@ -178,5 +240,61 @@ describe("WorkspaceClient", () => {
 
         expect(workspaceActions.saveWorkspaceFile).toHaveBeenCalled();
         expect(workspaceActions.getWorkspaceChangedFiles).toHaveBeenCalled();
+    });
+
+    it("creates a new branch when handleCreateBranch is triggered", async () => {
+        (workspaceActions.createBranch as jest.Mock).mockResolvedValue({ success: true });
+        (workspaceActions.getRepoBranches as jest.Mock).mockResolvedValue(["main", "dev", "new-branch"]);
+
+        render(<WorkspaceClient initialRepos={mockRepos} />);
+
+        await act(async () => {
+            fireEvent.click(screen.getByText("Select Repo 1"));
+        });
+
+        await act(async () => {
+            fireEvent.click(screen.getByText("Create Branch"));
+        });
+
+        expect(workspaceActions.createBranch).toHaveBeenCalledWith("repo-1", "new-branch");
+        await waitFor(() => {
+            expect(workspaceActions.getRepoBranches).toHaveBeenCalledTimes(2); // Initial + after create
+        });
+    });
+
+    it("commits changes when handleCommit is triggered", async () => {
+        (workspaceActions.commitChanges as jest.Mock).mockResolvedValue({ success: true });
+        
+        render(<WorkspaceClient initialRepos={mockRepos} />);
+
+        await act(async () => {
+            fireEvent.click(screen.getByText("Select Repo 1"));
+        });
+
+        const commitInput = screen.getByPlaceholderText("Commit message...");
+        fireEvent.change(commitInput, { target: { value: "test commit" } });
+        
+        await act(async () => {
+            fireEvent.click(screen.getByText("Commit"));
+        });
+
+        expect(workspaceActions.commitChanges).toHaveBeenCalledWith("repo-1", "test commit");
+        expect(commitInput).toHaveValue("");
+    });
+
+    it("pushes changes when handlePush is triggered", async () => {
+        (workspaceActions.pushChanges as jest.Mock).mockResolvedValue({ success: true });
+        
+        render(<WorkspaceClient initialRepos={mockRepos} />);
+
+        await act(async () => {
+            fireEvent.click(screen.getByText("Select Repo 1"));
+        });
+
+        await act(async () => {
+            fireEvent.click(screen.getByText("Push"));
+        });
+
+        expect(workspaceActions.pushChanges).toHaveBeenCalledWith("repo-1", "main");
     });
 });

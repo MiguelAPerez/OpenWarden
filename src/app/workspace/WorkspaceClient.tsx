@@ -16,7 +16,10 @@ import {
     saveWorkspaceFile,
     getWorkspaceChangedFiles,
     getGitFileContent,
-    revertWorkspaceFile
+    revertWorkspaceFile,
+    createBranch,
+    commitChanges,
+    pushChanges
 } from "@/app/actions/workspace";
 
 export interface FileChange {
@@ -58,7 +61,7 @@ export interface Tab {
 
 export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[] }) {
     const [repos] = useState<Repo[]>(initialRepos);
-    const [selectedRepoId, setSelectedRepoId] = useState<string>(initialRepos[0]?.id || "");
+    const [selectedRepoId, setSelectedRepoId] = useState<string>("");
     const [branches, setBranches] = useState<string[]>([]);
     const [selectedBranch, setSelectedBranch] = useState<string>("main");
 
@@ -71,12 +74,28 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
     const [pendingSuggestion, setPendingSuggestion] = useState<PendingSuggestion | null>(null);
     const [chatTab, setChatTab] = useState<"context" | "suggestions" | null>(null);
 
+    const [commitMessage, setCommitMessage] = useState("");
+    const [isPushing, setIsPushing] = useState(false);
+    const [isCommitting, setIsCommitting] = useState(false);
+
     const [isLoadingInit, setIsLoadingInit] = useState(false);
 
     const loadChangedFiles = useCallback(async (repoId: string) => {
         const changes = await getWorkspaceChangedFiles(repoId);
         setChangedFiles(changes);
     }, []);
+
+    // Clear state when repo changes
+    useEffect(() => {
+        setOpenTabs([]);
+        setActiveTabPath(null);
+        setContextFiles([]);
+        setPendingSuggestion(null);
+        setChatTab(null);
+        setFileTree([]);
+        setBranches([]);
+        setSelectedBranch("main");
+    }, [selectedRepoId]);
 
     // Load workspace when repo changes
     useEffect(() => {
@@ -313,6 +332,50 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
         setContextFiles(prev => prev.filter(p => p !== path));
     };
 
+    const handleCreateBranch = async (name: string) => {
+        setIsLoadingInit(true);
+        try {
+            await createBranch(selectedRepoId, name);
+            const bs = await getRepoBranches(selectedRepoId);
+            setBranches(bs);
+            setSelectedBranch(name);
+        } catch (e) {
+            console.error("Failed to create branch", e);
+            alert("Failed to create branch");
+        } finally {
+            setIsLoadingInit(false);
+        }
+    };
+
+    const handleCommit = async () => {
+        if (!commitMessage.trim()) return;
+        setIsCommitting(true);
+        try {
+            await commitChanges(selectedRepoId, commitMessage);
+            setCommitMessage("");
+            await loadChangedFiles(selectedRepoId);
+        } catch (e) {
+            console.error("Commit failed", e);
+            alert("Failed to commit changes. Make sure you have changes to commit.");
+        } finally {
+            setIsCommitting(true); // Wait, should be false? Ah, I see below.
+            setIsCommitting(false);
+        }
+    };
+
+    const handlePush = async () => {
+        setIsPushing(true);
+        try {
+            await pushChanges(selectedRepoId, selectedBranch);
+            alert("Pushed successfully!");
+        } catch (e) {
+            console.error("Push failed", e);
+            alert("Failed to push changes.");
+        } finally {
+            setIsPushing(false);
+        }
+    };
+
     return (
         <div className="flex flex-col flex-1 h-full bg-background border-t border-border">
             <WorkspaceTopBar
@@ -322,6 +385,7 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
                 branches={branches}
                 selectedBranch={selectedBranch}
                 onSelectBranch={setSelectedBranch}
+                onCreateBranch={handleCreateBranch}
             />
 
             <div className="flex-1 overflow-hidden relative group">
@@ -333,7 +397,41 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
 
                 <PanelGroup orientation="horizontal">
                     <Panel defaultSize={20} minSize={10} className="border-r border-border bg-foreground/[0.02]">
-                        <FileTree tree={fileTree} onSelectFile={handleFileSelect} changedFiles={changedFiles} onRevertFile={handleRevertFile} />
+                        <div className="flex flex-col h-full">
+                            <div className="flex-1 overflow-hidden">
+                                <FileTree tree={fileTree} onSelectFile={handleFileSelect} changedFiles={changedFiles} onRevertFile={handleRevertFile} />
+                            </div>
+                            
+                            {selectedRepoId && (
+                                <div className="p-4 border-t border-border bg-background/50">
+                                    <div className="flex flex-col gap-2">
+                                        <div className="text-[10px] font-semibold text-foreground/40 uppercase tracking-wider px-1">Source Control</div>
+                                        <textarea 
+                                            value={commitMessage}
+                                            onChange={(e) => setCommitMessage(e.target.value)}
+                                            placeholder="Commit message..."
+                                            className="w-full p-2 text-xs bg-foreground/5 border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary min-h-[60px] resize-none"
+                                        />
+                                        <div className="flex gap-2">
+                                            <button 
+                                                onClick={handleCommit}
+                                                disabled={isCommitting || !commitMessage.trim()}
+                                                className="flex-1 p-2 text-xs font-semibold bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                                            >
+                                                {isCommitting ? "Committing..." : "Commit"}
+                                            </button>
+                                            <button 
+                                                onClick={handlePush}
+                                                disabled={isPushing}
+                                                className="p-2 text-xs font-semibold bg-foreground/10 text-foreground rounded hover:bg-foreground/20 disabled:opacity-50 transition-colors"
+                                            >
+                                                {isPushing ? "Pushing..." : "Push"}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </Panel>
 
                     <PanelResizeHandle className="w-1 bg-border hover:bg-primary/50 transition-colors" />

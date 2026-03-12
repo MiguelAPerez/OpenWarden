@@ -339,3 +339,56 @@ export async function revertWorkspaceFile(repoId: string, filePath: string) {
         }
     }
 }
+
+// Creates a new branch in the workspace
+export async function createBranch(repoId: string, branchName: string) {
+    const user = await getUserSession();
+    const repo = db.select().from(repositories).where(eq(repositories.id, repoId)).get();
+    if (!repo) throw new Error("Repository not found");
+
+    const workspaceRepoDir = path.join(WORKSPACES_BASE_DIR, user.id, repo.fullName);
+
+    try {
+        await execAsync(`git -C "${workspaceRepoDir}" checkout -b "${branchName}"`);
+        return { success: true };
+    } catch (e) {
+        console.error("Failed to create branch", e);
+        throw new Error(`Failed to create branch: ${branchName}`);
+    }
+}
+
+// Commits all changes in the workspace
+export async function commitChanges(repoId: string, message: string) {
+    const user = await getUserSession();
+    const repo = db.select().from(repositories).where(eq(repositories.id, repoId)).get();
+    if (!repo) throw new Error("Repository not found");
+
+    const workspaceRepoDir = path.join(WORKSPACES_BASE_DIR, user.id, repo.fullName);
+
+    try {
+        await execAsync(`git -C "${workspaceRepoDir}" add .`);
+        await execAsync(`git -C "${workspaceRepoDir}" commit -m "${message.replace(/"/g, '\\"')}"`);
+        return { success: true };
+    } catch (e) {
+        console.error("Failed to commit changes", e);
+        throw new Error("Failed to commit changes. Make sure you have something to commit.");
+    }
+}
+
+// Pushes the specified branch to origin
+export async function pushChanges(repoId: string, branchName: string) {
+    const user = await getUserSession();
+    const repo = db.select().from(repositories).where(eq(repositories.id, repoId)).get();
+    if (!repo) throw new Error("Repository not found");
+
+    const workspaceRepoDir = path.join(WORKSPACES_BASE_DIR, user.id, repo.fullName);
+
+    try {
+        // We push to origin. Note: This might require authentication setup if not handled by SSH/Global config.
+        await execAsync(`git -C "${workspaceRepoDir}" push origin "${branchName}"`);
+        return { success: true };
+    } catch (e) {
+        console.error("Failed to push changes", e);
+        throw new Error("Failed to push changes to remote.");
+    }
+}
