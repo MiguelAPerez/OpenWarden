@@ -10,6 +10,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/auth";
 import { runGitInDocker, checkGitDockerStatus } from "@/lib/docker-git";
 import { listSandboxes, executeSandboxCommand } from "./docker-sandboxes";
+import { getAuthenticatedCloneUrl } from "@/lib/git-auth";
 
 const execAsync = promisify(exec);
 const WORKSPACES_BASE_DIR = path.join(process.cwd(), "data", "workspaces");
@@ -150,6 +151,14 @@ export async function pushChanges(repoId: string, branchName: string) {
     const workspaceRepoDir = path.join(WORKSPACES_BASE_DIR, user.id, repo.fullName);
 
     try {
+        const authenticatedUrl = await getAuthenticatedCloneUrl({
+            url: repo.url,
+            source: repo.source,
+            userId: user.id,
+            fullName: repo.fullName,
+            githubConfigurationId: repo.githubConfigurationId
+        });
+
         const dockerStatus = await checkGitDockerStatus();
         if (dockerStatus.dockerRunning && dockerStatus.imageBuilt) {
              // Check for persistent sandbox first
@@ -157,7 +166,8 @@ export async function pushChanges(repoId: string, branchName: string) {
             const sandbox = sandboxes.find(s => s.repoIds.includes(repoId));
 
             if (sandbox) {
-                const res = await executeSandboxCommand(sandbox.id, `git push origin "${branchName}"`, repo.name);
+                // We push to the authenticated URL directly to bypass SSH key issues
+                const res = await executeSandboxCommand(sandbox.id, `git push "${authenticatedUrl}" "${branchName}"`, repo.name);
                 if (!res.success) {
                     throw new Error(res.stderr || "Failed to push changes in Sandbox.");
                 }
@@ -165,14 +175,14 @@ export async function pushChanges(repoId: string, branchName: string) {
             }
 
             // Fallback to transient Docker Sandbox (docker run --rm)
-            const result = await runGitInDocker(workspaceRepoDir, ["push", "origin", `"${branchName}"`]);
+            const result = await runGitInDocker(workspaceRepoDir, ["push", `"${authenticatedUrl}"`, `"${branchName}"`]);
             if (result.exitCode !== 0) {
                 throw new Error(result.stderr || "Failed to push changes in Docker.");
             }
             return { success: true, stdout: result.stdout || "Changes pushed successfully.", stderr: result.stderr };
         } else {
-            // Fallback to host exec (original behavior)
-            await execAsync(`git -C "${workspaceRepoDir}" push origin "${branchName}"`);
+            // Fallback to host exec (original behavior) - can still use origin or authenticated URL
+            await execAsync(`git -C "${workspaceRepoDir}" push "${authenticatedUrl}" "${branchName}"`);
             return { success: true, stdout: "Changes pushed successfully.", stderr: "" };
         }
     } catch (e: unknown) {
