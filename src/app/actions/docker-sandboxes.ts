@@ -138,3 +138,31 @@ export async function stopSandbox(containerId: string) {
         throw new Error(err.message || "Failed to stop container.");
     }
 }
+
+/**
+ * Executes a command inside an active sandbox container
+ */
+export async function executeSandboxCommand(containerId: string, command: string, repoName?: string) {
+    try {
+        // Build the command to run with a specific working directory if repoName is provided
+        const workdir = repoName ? `/workspace/${repoName}` : '/workspace';
+        // We use -w to set working directory
+        const dockerCmd = `docker exec -w "${workdir}" ${containerId} sh -c "${command.replace(/"/g, '\\"')}"`;
+        
+        const { stdout, stderr } = await execAsync(dockerCmd);
+        return {
+            success: true,
+            stdout,
+            stderr,
+            exitCode: 0
+        };
+    } catch (error: unknown) {
+        const err = error as { stdout?: string; stderr?: string; message?: string; code?: number };
+        return {
+            success: false,
+            stdout: err.stdout || "",
+            stderr: err.stderr || err.message || "Failed to execute command",
+            exitCode: err.code || 1
+        };
+    }
+}

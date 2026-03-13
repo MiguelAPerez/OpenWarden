@@ -6,8 +6,14 @@ import WorkspaceTopBar from "./components/WorkspaceTopBar";
 import FileTree from "./components/FileTree";
 import EditorArea from "./components/EditorArea";
 import ChatPanel from "./components/ChatPanel";
+import Terminal from "./components/Terminal";
 
 import { initWorkspace } from "@/app/actions/workspace";
+import { 
+    listSandboxes, 
+    executeSandboxCommand,
+    SandboxInfo 
+} from "@/app/actions/docker-sandboxes";
 import {
     getRepoBranches,
     checkoutBranch,
@@ -57,6 +63,12 @@ export interface Tab {
     isDirty: boolean;
 }
 
+interface LogEntry {
+    type: "input" | "stdout" | "stderr" | "info";
+    content: string;
+    timestamp: number;
+}
+
 export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[] }) {
     const [repos] = useState<Repo[]>(initialRepos);
     const [selectedRepoId, setSelectedRepoId] = useState<string>("");
@@ -76,11 +88,21 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
     const [isPushing, setIsPushing] = useState(false);
     const [isCommitting, setIsCommitting] = useState(false);
 
+    // Terminal State
+    const [isTerminalOpen, setIsTerminalOpen] = useState(false);
+    const [terminalLogs, setTerminalLogs] = useState<LogEntry[]>([]);
+    const [isFollowMode, setIsFollowMode] = useState(true);
+    const [activeSandbox, setActiveSandbox] = useState<SandboxInfo | null>(null);
+
     const [isLoadingInit, setIsLoadingInit] = useState(false);
 
     const loadChangedFiles = useCallback(async (repoId: string) => {
         const changes = await getWorkspaceChangedFiles(repoId);
         setChangedFiles(changes);
+    }, []);
+
+    const addLog = useCallback((type: LogEntry["type"], content: string) => {
+        setTerminalLogs(prev => [...prev, { type, content, timestamp: Date.now() }]);
     }, []);
 
     // Clear state when repo changes
@@ -93,6 +115,11 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
         setFileTree([]);
         setBranches([]);
         setSelectedBranch("main");
+        
+        // Reset terminal logs when repo changes? Maybe keep them?
+        // Let's reset for now to keep it clean per repo.
+        setTerminalLogs([]);
+        setActiveSandbox(null);
     }, [selectedRepoId]);
 
     // Load workspace when repo changes
@@ -122,8 +149,19 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
 
         loadRepoEnv();
 
+        // Detect sandbox for this repo
+        async function detectSandbox() {
+            const sandboxes = await listSandboxes();
+            const matching = sandboxes.find(s => s.repoIds.includes(selectedRepoId));
+            if (matching) {
+                setActiveSandbox(matching);
+                addLog("info", `Connected to sandbox: ${matching.name}`);
+            }
+        }
+        detectSandbox();
+
         return () => { active = false; };
-    }, [selectedRepoId]);
+    }, [selectedRepoId, addLog]);
 
     // Load branch constraints when repo + branch changes
     useEffect(() => {
@@ -348,29 +386,66 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
     const handleCommit = async () => {
         if (!commitMessage.trim()) return;
         setIsCommitting(true);
+        
+        if (isFollowMode && !isTerminalOpen) setIsTerminalOpen(true);
+        if (isFollowMode) addLog("info", `Committing: ${commitMessage}`);
+
         try {
-            await commitChanges(selectedRepoId, commitMessage);
-            setCommitMessage("");
-            await loadChangedFiles(selectedRepoId);
+            const res = await commitChanges(selectedRepoId, commitMessage);
+            if (res.success) {
+                if (isFollowMode) addLog("stdout", res.stdout);
+                setCommitMessage("");
+                await loadChangedFiles(selectedRepoId);
+            } else {
+                if (isFollowMode) addLog("stderr", res.stderr);
+                alert(res.stderr);
+            }
         } catch (e) {
             console.error("Commit failed", e);
-            alert("Failed to commit changes. Make sure you have changes to commit.");
+            alert("Failed to commit changes.");
         } finally {
-            setIsCommitting(true); // Wait, should be false? Ah, I see below.
             setIsCommitting(false);
         }
     };
 
     const handlePush = async () => {
         setIsPushing(true);
+
+        if (isFollowMode && !isTerminalOpen) setIsTerminalOpen(true);
+        if (isFollowMode) addLog("info", `Pushing branch: ${selectedBranch}`);
+
         try {
-            await pushChanges(selectedRepoId, selectedBranch);
-            alert("Pushed successfully!");
+            const res = await pushChanges(selectedRepoId, selectedBranch);
+            if (res.success) {
+                if (isFollowMode) addLog("stdout", res.stdout);
+                alert("Pushed successfully!");
+            } else {
+                if (isFollowMode) addLog("stderr", res.stderr);
+                alert(res.stderr);
+            }
         } catch (e) {
             console.error("Push failed", e);
             alert("Failed to push changes.");
         } finally {
             setIsPushing(false);
+        }
+    };
+
+    const handleExecuteCommand = async (command: string) => {
+        if (!activeSandbox) return;
+        
+        addLog("input", command);
+        const repo = repos.find(r => r.id === selectedRepoId);
+        
+        try {
+            const res = await executeSandboxCommand(activeSandbox.id, command, repo?.name);
+            if (res.stdout) addLog("stdout", res.stdout);
+            if (res.stderr) addLog("stderr", res.stderr);
+            if (!res.success && !res.stderr && !res.stdout) {
+                 addLog("stderr", "Command failed with no output");
+            }
+        } catch (e) {
+            addLog("stderr", `Error: ${e instanceof Error ? e.message : String(e)}`);
         }
     };
 
@@ -402,6 +477,9 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
                 selectedBranch={selectedBranch}
                 onSelectBranch={setSelectedBranch}
                 onCreateBranch={handleCreateBranch}
+                isTerminalOpen={isTerminalOpen}
+                onToggleTerminal={() => setIsTerminalOpen(!isTerminalOpen)}
+                sandboxName={activeSandbox?.name}
             />
 
             <div className="flex-1 overflow-hidden relative group">
@@ -487,6 +565,25 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
                             />
                     </Panel>
                 </PanelGroup>
+
+                {/* Bottom Terminal Panel */}
+                {isTerminalOpen && (
+                    <div className="absolute inset-x-0 bottom-0 z-20" style={{ height: '30%' }}>
+                        <div className="h-full relative group/term">
+                            {/* Resize handle overlay (simplified since we're using fixed 30% for now or could use panels too) */}
+                            <div className="absolute top-0 inset-x-0 h-1 cursor-ns-resize bg-border hover:bg-primary transition-colors" />
+                            <Terminal 
+                                logs={terminalLogs}
+                                onExecute={handleExecuteCommand}
+                                isSandboxConnected={!!activeSandbox}
+                                sandboxName={activeSandbox?.name}
+                                isFollowMode={isFollowMode}
+                                onToggleFollow={() => setIsFollowMode(!isFollowMode)}
+                            />
+                            {/* Close button in the terminal area itself perhaps? Or top bar is enough. */}
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

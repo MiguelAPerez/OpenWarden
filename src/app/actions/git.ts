@@ -104,10 +104,15 @@ export async function commitChanges(repoId: string, message: string) {
             // Fallback to host exec (original behavior)
             await execAsync(`git -C "${workspaceRepoDir}" commit -m "${message.replace(/"/g, '\\"')}"`);
         }
-        return { success: true };
+        return { success: true, stdout: "Changes committed successfully.", stderr: "" };
     } catch (e: unknown) {
+        const err = e as { stdout?: string; stderr?: string; message?: string };
         console.error("Failed to commit changes", e);
-        throw new Error("Failed to commit changes. Make sure you have something to commit.");
+        return { 
+            success: false, 
+            stdout: err.stdout || "", 
+            stderr: err.stderr || err.message || "Failed to commit changes." 
+        };
     }
 }
 
@@ -131,10 +136,15 @@ export async function pushChanges(repoId: string, branchName: string) {
             // Fallback to host exec (original behavior)
             await execAsync(`git -C "${workspaceRepoDir}" push origin "${branchName}"`);
         }
-        return { success: true };
+        return { success: true, stdout: "Changes pushed successfully.", stderr: "" };
     } catch (e: unknown) {
+        const err = e as { stdout?: string; stderr?: string; message?: string };
         console.error("Failed to push changes", e);
-        throw new Error("Failed to push changes to remote.");
+        return { 
+            success: false, 
+            stdout: err.stdout || "", 
+            stderr: err.stderr || err.message || "Failed to push changes to remote." 
+        };
     }
 }
 
