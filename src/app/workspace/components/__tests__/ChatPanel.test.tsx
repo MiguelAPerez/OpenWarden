@@ -2,6 +2,24 @@ import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import ChatPanel from "../ChatPanel";
 
+jest.mock("react-markdown", () => ({
+    __esModule: true,
+    default: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}));
+
+jest.mock("remark-gfm", () => ({
+    __esModule: true,
+    default: () => {},
+}));
+
+jest.mock("react-syntax-highlighter", () => ({
+    Prism: ({ children }: { children: React.ReactNode }) => <pre>{children}</pre>,
+}));
+
+jest.mock("react-syntax-highlighter/dist/esm/styles/prism", () => ({
+    vscDarkPlus: {},
+}));
+
 window.HTMLElement.prototype.scrollIntoView = jest.fn();
 
 describe("ChatPanel", () => {

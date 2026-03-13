@@ -138,15 +138,18 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
 
     // Load agents on mount
     useEffect(() => {
+        let active = true;
         async function loadAgents() {
             const configs = await getAgentConfigs();
+            if (!active) return;
             setAgents(configs.map(c => ({ id: c.id, name: c.name })));
-            if (configs.length > 0 && !selectedAgentId) {
-                setSelectedAgentId(configs[0].id);
+            if (configs.length > 0) {
+                setSelectedAgentId(prev => prev || configs[0].id);
             }
         }
         loadAgents();
-    }, [selectedAgentId]);
+        return () => { active = false; };
+    }, []);
 
     // Load workspace when repo changes
     useEffect(() => {
