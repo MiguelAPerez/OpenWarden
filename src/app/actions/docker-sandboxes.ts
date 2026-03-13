@@ -158,10 +158,13 @@ export async function executeSandboxCommand(containerId: string, command: string
         };
     } catch (error: unknown) {
         const err = error as { stdout?: string; stderr?: string; message?: string; code?: number };
+        // If we have stderr, use that as it's cleaner than the full error message
+        const errorOutput = err.stderr || err.message || "Failed to execute command";
+        
         return {
             success: false,
             stdout: err.stdout || "",
-            stderr: err.stderr || err.message || "Failed to execute command",
+            stderr: errorOutput,
             exitCode: err.code || 1
         };
     }

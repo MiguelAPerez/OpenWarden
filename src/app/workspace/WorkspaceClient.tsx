@@ -536,17 +536,37 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
                     </Panel>
 
                     <PanelResizeHandle className="w-1 bg-border hover:bg-primary/50 transition-colors" />
-
+                    
                     <Panel defaultSize={55} minSize={30}>
-                        <EditorArea
-                            tabs={openTabs}
-                            activeTabPath={activeTabPath}
-                            onTabSelect={setActiveTabPath}
-                            onTabClose={handleTabClose}
-                            onContentChange={handleContentChange}
-                            onSaveFile={handleSaveFile}
-                            pendingSuggestion={pendingSuggestion}
-                        />
+                        <PanelGroup orientation="vertical">
+                            <Panel defaultSize={70} minSize={40}>
+                                <EditorArea
+                                    tabs={openTabs}
+                                    activeTabPath={activeTabPath}
+                                    onTabSelect={setActiveTabPath}
+                                    onTabClose={handleTabClose}
+                                    onContentChange={handleContentChange}
+                                    onSaveFile={handleSaveFile}
+                                    pendingSuggestion={pendingSuggestion}
+                                />
+                            </Panel>
+                            
+                            {isTerminalOpen && (
+                                <>
+                                    <PanelResizeHandle className="h-1 bg-border hover:bg-primary/50 transition-colors" />
+                                    <Panel defaultSize={30} minSize={15}>
+                                        <Terminal 
+                                            logs={terminalLogs}
+                                            onExecute={handleExecuteCommand}
+                                            isSandboxConnected={!!activeSandbox}
+                                            sandboxName={activeSandbox?.name}
+                                            isFollowMode={isFollowMode}
+                                            onToggleFollow={() => setIsFollowMode(!isFollowMode)}
+                                        />
+                                    </Panel>
+                                </>
+                            )}
+                        </PanelGroup>
                     </Panel>
 
                     <PanelResizeHandle className="w-1 bg-border hover:bg-primary/50 transition-colors" />
@@ -565,25 +585,6 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
                             />
                     </Panel>
                 </PanelGroup>
-
-                {/* Bottom Terminal Panel */}
-                {isTerminalOpen && (
-                    <div className="absolute inset-x-0 bottom-0 z-20" style={{ height: '30%' }}>
-                        <div className="h-full relative group/term">
-                            {/* Resize handle overlay (simplified since we're using fixed 30% for now or could use panels too) */}
-                            <div className="absolute top-0 inset-x-0 h-1 cursor-ns-resize bg-border hover:bg-primary transition-colors" />
-                            <Terminal 
-                                logs={terminalLogs}
-                                onExecute={handleExecuteCommand}
-                                isSandboxConnected={!!activeSandbox}
-                                sandboxName={activeSandbox?.name}
-                                isFollowMode={isFollowMode}
-                                onToggleFollow={() => setIsFollowMode(!isFollowMode)}
-                            />
-                            {/* Close button in the terminal area itself perhaps? Or top bar is enough. */}
-                        </div>
-                    </div>
-                )}
             </div>
         </div>
     );

@@ -83,11 +83,12 @@ export default function Terminal({
                     <div className="text-foreground/20 italic">No output. Commands executed by you or the AI will appear here.</div>
                 ) : (
                     logs.map((log, i) => (
-                        <div key={i} className="flex gap-2 break-all opacity-0 animate-in fade-in duration-300 fill-mode-forwards">
+                        <div key={i} className="flex gap-2 break-all animate-in fade-in duration-300">
                             {log.type === "input" && <span className="text-primary shrink-0">$</span>}
                             {log.type === "stderr" && <span className="text-red-400 shrink-0">!</span>}
                             {log.type === "info" && <span className="text-blue-400 shrink-0">i</span>}
                             <span className={`
+                                whitespace-pre-wrap
                                 ${log.type === "input" ? "text-foreground font-bold" : ""}
                                 ${log.type === "stderr" ? "text-red-400/90" : ""}
                                 ${log.type === "info" ? "text-blue-400/80 italic" : ""}
