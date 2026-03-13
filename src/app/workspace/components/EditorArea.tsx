@@ -62,8 +62,8 @@ export default function EditorArea({
         const decorations: any[] = [];
         const newBlocks: DiffBlock[] = [];
 
-        if (activeTab.gitHeadContent !== null) {
-            const diffs = diffLines(activeTab.gitHeadContent, activeTab.content || "");
+        if (activeTab.gitIndexContent !== null) {
+            const diffs = diffLines(activeTab.gitIndexContent, activeTab.content || "");
             let currentLine = 1;
 
             for (let i = 0; i < diffs.length; i++) {
@@ -281,7 +281,7 @@ export default function EditorArea({
                     margin-left: 5px;
                 }
                 .git-diff-modified-margin {
-                    border-left: 3px solid #3b82f6;
+                    border-left: 3px solid #f59e0b;
                     margin-left: 5px;
                 }
                 .pending-suggestion-line {

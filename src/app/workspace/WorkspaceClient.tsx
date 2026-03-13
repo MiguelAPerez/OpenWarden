@@ -57,6 +57,7 @@ export interface Tab {
     content: string;
     originalContent: string;
     gitHeadContent: string | null;
+    gitIndexContent: string | null;
     isDirty: boolean;
 }
 
@@ -258,16 +259,18 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
         }
 
         try {
-            const [content, gitHeadContent] = await Promise.all([
+            const [content, gitHeadContent, gitIndexContent] = await Promise.all([
                 getWorkspaceFileContent(selectedRepoId, path).catch(() => ""),
-                getGitFileContent(selectedRepoId, path).catch(() => null)
+                getGitFileContent(selectedRepoId, path, "HEAD").catch(() => null),
+                getGitFileContent(selectedRepoId, path, "").catch(() => null)
             ]);
-
+ 
             const newTab: Tab = {
                 path,
                 content,
                 originalContent: content,
                 gitHeadContent,
+                gitIndexContent,
                 isDirty: false
             };
             setOpenTabs(prev => [...prev, newTab]);
@@ -386,9 +389,10 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
 
         try {
             await saveWorkspaceFile(selectedRepoId, path, tab.content);
+            const gitIndexContent = await getGitFileContent(selectedRepoId, path, "").catch(() => null);
             setOpenTabs(prev => prev.map(t => {
                 if (t.path === path) {
-                    return { ...t, originalContent: t.content, isDirty: false };
+                    return { ...t, originalContent: t.content, gitIndexContent, isDirty: false };
                 }
                 return t;
             }));
@@ -411,10 +415,11 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
                 // If it was restored, we fetch the latest content to update tabs.
                 if (res.action === "restored") {
                     const content = await getWorkspaceFileContent(selectedRepoId, path);
-                    const gitContent = await getGitFileContent(selectedRepoId, path);
+                    const gitHeadContent = await getGitFileContent(selectedRepoId, path, "HEAD");
+                    const gitIndexContent = await getGitFileContent(selectedRepoId, path, "");
                     setOpenTabs(prev => prev.map(t => {
                         if (t.path === path) {
-                            return { ...t, content, originalContent: content, gitHeadContent: gitContent, isDirty: false };
+                            return { ...t, content, originalContent: content, gitHeadContent, gitIndexContent, isDirty: false };
                         }
                         return t;
                     }));
@@ -568,16 +573,30 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
     const handleStageFile = async (filePath: string) => {
         try {
             await stageFile(selectedRepoId, filePath);
+            const gitIndexContent = await getGitFileContent(selectedRepoId, filePath, "").catch(() => null);
+            setOpenTabs(prev => prev.map(t => {
+                if (t.path === filePath) {
+                    return { ...t, gitIndexContent };
+                }
+                return t;
+            }));
             await loadChangedFiles(selectedRepoId);
             refreshGit();
         } catch (e) {
             console.error("Stage failed", e);
         }
     };
-
+ 
     const handleUnstageFile = async (filePath: string) => {
         try {
             await unstageFile(selectedRepoId, filePath);
+            const gitIndexContent = await getGitFileContent(selectedRepoId, filePath, "").catch(() => null);
+            setOpenTabs(prev => prev.map(t => {
+                if (t.path === filePath) {
+                    return { ...t, gitIndexContent };
+                }
+                return t;
+            }));
             await loadChangedFiles(selectedRepoId);
             refreshGit();
         } catch (e) {

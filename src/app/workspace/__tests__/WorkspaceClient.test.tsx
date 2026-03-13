@@ -93,7 +93,8 @@ jest.mock("../components/FileTree", () => {
 });
 
 jest.mock("../components/EditorArea", () => {
-    const MockEditorArea = ({ tabs, onSaveFile }: { tabs: { path: string }[], onSaveFile: (path: string) => void }) => (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const MockEditorArea = ({ tabs, onSaveFile }: { tabs: any[], onSaveFile: (path: string) => void }) => (
         <div data-testid="editor-area" onClick={() => onSaveFile("test.ts")}>
             Tabs: {tabs.length}
         </div>
@@ -226,7 +227,8 @@ describe("WorkspaceClient", () => {
         await screen.findByText("Tabs: 1");
 
         expect(fileActions.getWorkspaceFileContent).toHaveBeenCalledWith("repo-1", "test.ts");
-        expect(fileActions.getGitFileContent).toHaveBeenCalledWith("repo-1", "test.ts");
+        expect(fileActions.getGitFileContent).toHaveBeenCalledWith("repo-1", "test.ts", "HEAD");
+        expect(fileActions.getGitFileContent).toHaveBeenCalledWith("repo-1", "test.ts", "");
     });
 
     it("saves file and refreshes changed files when handleSaveFile is triggered", async () => {

@@ -37,7 +37,11 @@ export default function FileTree({ tree, changedFiles = [], onSelectFile, onReve
                                         className="group flex items-center gap-1.5 px-2 py-1 hover:bg-foreground/5 cursor-pointer rounded text-xs text-foreground/80"
                                         onClick={() => onSelectFile(file.path)}
                                     >
-                                        <span className={`font-mono font-bold w-3 text-center ${file.status[0] === 'M' ? 'text-blue-500' : 'text-green-500'}`}>
+                                        <span className={`font-mono font-bold w-3 text-center ${
+                                            file.status[0] === 'M' ? 'text-amber-500' : 
+                                            file.status[0] === 'D' ? 'text-red-500' : 
+                                            'text-green-500'
+                                        }`}>
                                             {file.status[0]}
                                         </span>
                                         <span className="truncate flex-1">{file.path.split("/").pop()}</span>
@@ -64,7 +68,11 @@ export default function FileTree({ tree, changedFiles = [], onSelectFile, onReve
                                         className="group flex items-center gap-1.5 px-2 py-1 hover:bg-foreground/5 cursor-pointer rounded text-xs text-foreground/80"
                                         onClick={() => onSelectFile(file.path)}
                                     >
-                                        <span className={`font-mono font-bold w-3 text-center ${file.status[1] === 'M' ? 'text-blue-500' : 'text-green-500'}`}>
+                                        <span className={`font-mono font-bold w-3 text-center ${
+                                            (file.status[1] === 'M' || (file.status[1] === ' ' && file.status[0] === 'M')) ? 'text-amber-500' : 
+                                            (file.status[1] === 'D' || (file.status[1] === ' ' && file.status[0] === 'D')) ? 'text-red-500' : 
+                                            'text-green-500'
+                                        }`}>
                                             {file.status[1] === ' ' ? file.status[0] : file.status[1]}
                                         </span>
                                         <span className="truncate flex-1">{file.path.split("/").pop()}</span>
@@ -153,7 +161,11 @@ function TreeNode({ node, level, onSelectFile, changedFiles }: { node: FileNode;
                     <span className="truncate">{node.name}</span>
                 </div>
                 {changedStatus && (
-                    <span className={`text-xs font-bold flex-shrink-0 leading-none w-3 text-center ${changedStatus.includes('M') ? 'text-blue-500' : 'text-green-500'}`}>
+                    <span className={`text-xs font-bold flex-shrink-0 leading-none w-3 text-center ${
+                        changedStatus.includes('M') ? 'text-amber-500' : 
+                        changedStatus.includes('D') ? 'text-red-500' : 
+                        'text-green-500'
+                    }`}>
                         {changedStatus.trim().charAt(0)}
                     </span>
                 )}
