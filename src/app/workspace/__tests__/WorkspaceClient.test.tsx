@@ -127,6 +127,7 @@ describe("WorkspaceClient", () => {
     beforeAll(() => {
         window.alert = jest.fn();
         window.confirm = jest.fn().mockReturnValue(true);
+        global.fetch = jest.fn() as jest.Mock;
     });
 
     beforeEach(() => {
@@ -278,7 +279,18 @@ describe("WorkspaceClient", () => {
         });
 
         await screen.findByText("Tabs: 1");
-
+        
+        // Mock fetch for chat API
+        (global.fetch as jest.Mock).mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({
+                message: "I suggested some changes.",
+                suggestion: {
+                    filesChanged: { "test.ts": { suggestedContent: "new content", originalContent: "initial content" } }
+                }
+            })
+        });
+        
         // Trigger message
         await act(async () => {
             fireEvent.click(screen.getByText("Send"));
