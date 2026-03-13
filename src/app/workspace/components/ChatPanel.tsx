@@ -17,6 +17,8 @@ interface ChatPanelProps {
     selectedAgentId: string;
     onSelectAgent: (id: string) => void;
     messages: { role: string, content: string }[];
+    allFiles?: string[];
+    onAddContext?: (path: string) => void;
 }
 
 export default function ChatPanel({ 
@@ -32,9 +34,15 @@ export default function ChatPanel({
     agents,
     selectedAgentId,
     onSelectAgent,
-    messages
+    messages,
+    allFiles = [],
+    onAddContext
 }: ChatPanelProps) {
     const [inputValue, setInputValue] = useState("");
+    const [showMentions, setShowMentions] = useState(false);
+    const [mentionQuery, setMentionQuery] = useState("");
+    const [mentionStartIndex, setMentionStartIndex] = useState(-1);
+    const textareaRef = React.useRef<HTMLTextAreaElement>(null);
     const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
     const scrollToBottom = () => {
@@ -45,11 +53,62 @@ export default function ChatPanel({
         scrollToBottom();
     }, [messages]);
 
+    // Auto-resize textarea
+    React.useEffect(() => {
+        if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto';
+            textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
+        }
+    }, [inputValue]);
+
     const handleSend = () => {
         if (!inputValue.trim()) return;
         onSendMessage(inputValue);
         setInputValue("");
+        if (textareaRef.current) textareaRef.current.style.height = 'auto';
     };
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const value = e.target.value;
+        const cursorPosition = e.target.selectionStart;
+        setInputValue(value);
+
+        // Simple mention detection
+        const lastAtIndex = value.lastIndexOf('@', cursorPosition - 1);
+        if (lastAtIndex !== -1) {
+            const textAfterAt = value.substring(lastAtIndex + 1, cursorPosition);
+            // If there's a space before the @ or it's at the start, and no space in the mention query
+            const charBeforeAt = lastAtIndex > 0 ? value[lastAtIndex - 1] : ' ';
+            if ((charBeforeAt === ' ' || charBeforeAt === '\n') && !textAfterAt.includes(' ')) {
+                setShowMentions(true);
+                setMentionQuery(textAfterAt.toLowerCase());
+                setMentionStartIndex(lastAtIndex);
+            } else {
+                setShowMentions(false);
+            }
+        } else {
+            setShowMentions(false);
+        }
+    };
+
+    const selectMention = (file: string) => {
+        if (!onAddContext) return;
+        
+        const before = inputValue.substring(0, mentionStartIndex);
+        const after = inputValue.substring(textareaRef.current?.selectionStart || 0);
+        
+        // We just add it to context and keep the text as @filename or similar
+        // For now let's just complete the text and close mentions
+        const fileName = file.split('/').pop() || file;
+        setInputValue(`${before}@${fileName}${after}`);
+        onAddContext(file);
+        setShowMentions(false);
+        textareaRef.current?.focus();
+    };
+
+    const filteredFiles = allFiles
+        .filter(f => f.toLowerCase().includes(mentionQuery))
+        .slice(0, 10);
 
     return (
         <div className="flex flex-col h-full bg-background overflow-hidden">
@@ -192,26 +251,51 @@ export default function ChatPanel({
             )}
             
             {/* Input area */}
-            <div className="p-3 border-t border-border">
-                <div className="relative">
-                    <input 
-                        type="text" 
+            <div className="p-3 border-t border-border bg-background relative">
+                {showMentions && filteredFiles.length > 0 && (
+                    <div className="absolute bottom-full left-3 right-3 mb-2 bg-background border border-border rounded-lg shadow-xl overflow-hidden z-50 max-h-48 overflow-y-auto">
+                        <div className="p-2 border-b border-border bg-foreground/[0.03] text-[10px] uppercase font-bold text-foreground/40 tracking-wider">
+                            Files
+                        </div>
+                        {filteredFiles.map(file => (
+                            <button
+                                key={file}
+                                onClick={() => selectMention(file)}
+                                className="w-full text-left px-3 py-2 text-xs hover:bg-primary/10 hover:text-primary transition-colors flex items-center justify-between group"
+                            >
+                                <span className="truncate flex-1">{file}</span>
+                            </button>
+                        ))}
+                    </div>
+                )}
+                <div className="relative flex items-end gap-2">
+                    <textarea 
+                        ref={textareaRef}
                         value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
+                        onChange={handleInputChange}
                         onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
+                            if (e.key === 'Enter' && !e.shiftKey && !showMentions) {
                                 e.preventDefault();
                                 handleSend();
                             }
+                            if (e.key === 'Escape' && showMentions) {
+                                setShowMentions(false);
+                            }
                         }}
-                        placeholder="Ask Copilot..." 
-                        className="w-full bg-foreground/5 border border-border rounded-lg pl-3 pr-10 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                        rows={1}
+                        placeholder="Ask Copilot... (use @ to mention files)" 
+                        className="w-full bg-foreground/5 border border-border rounded-lg pl-3 pr-10 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none min-h-[42px] max-h-[200px] transition-all scrollbar-hide"
                     />
                     <button 
                         onClick={handleSend}
-                        className="absolute right-2 top-1.5 p-1 rounded hover:bg-foreground/10 text-primary"
+                        title="Send Message"
+                        className="p-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                        disabled={!inputValue.trim()}
                     >
-                        <span className="text-xs font-bold">↑</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="12" y1="19" x2="12" y2="5"></line>
+                            <polyline points="5 12 12 5 19 12"></polyline>
+                        </svg>
                     </button>
                 </div>
             </div>

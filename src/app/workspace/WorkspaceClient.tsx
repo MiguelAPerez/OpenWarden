@@ -425,6 +425,25 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
         setContextFiles(prev => prev.filter(p => p !== path));
     };
 
+    const handleAddContext = (path: string) => {
+        if (!contextFiles.includes(path)) {
+            setContextFiles(prev => [...prev, path]);
+        }
+    };
+
+    const getAllFiles = (nodes: FileNode[], prefix = ""): string[] => {
+        let files: string[] = [];
+        for (const node of nodes) {
+            const currentPath = prefix ? `${prefix}/${node.name}` : node.name;
+            if (node.type === "file") {
+                files.push(currentPath);
+            } else if (node.children) {
+                files = [...files, ...getAllFiles(node.children, currentPath)];
+            }
+        }
+        return files;
+    };
+
     const handleCreateBranch = async (name: string) => {
         setIsLoadingInit(true);
         if (isFollowMode && !isTerminalOpen) setIsTerminalOpen(true);
@@ -754,6 +773,8 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
                                 selectedAgentId={selectedAgentId}
                                 onSelectAgent={setSelectedAgentId}
                                 messages={chatMessages}
+                                allFiles={getAllFiles(fileTree)}
+                                onAddContext={handleAddContext}
                             />
                     </Panel>
                 </PanelGroup>

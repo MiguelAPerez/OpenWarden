@@ -2,6 +2,8 @@ import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import ChatPanel from "../ChatPanel";
 
+window.HTMLElement.prototype.scrollIntoView = jest.fn();
+
 describe("ChatPanel", () => {
     const mockProps = {
         contextFiles: ["file1.ts", "file2.ts"],
@@ -16,7 +18,9 @@ describe("ChatPanel", () => {
         agents: [{ id: "agent1", name: "Agent 1" }],
         selectedAgentId: "agent1",
         onSelectAgent: jest.fn(),
-        messages: []
+        messages: [],
+        allFiles: ["file1.ts", "file2.ts", "src/index.ts"],
+        onAddContext: jest.fn()
     };
 
     it("renders the copilot title", () => {
@@ -116,9 +120,26 @@ describe("ChatPanel", () => {
 
     it("calls onSendMessage when input is submitted", () => {
         render(<ChatPanel {...mockProps} />);
-        const input = screen.getByPlaceholderText("Ask Copilot...");
+        const input = screen.getByPlaceholderText("Ask Copilot... (use @ to mention files)");
         fireEvent.change(input, { target: { value: "test message" } });
-        fireEvent.click(screen.getByText("↑"));
+        fireEvent.click(screen.getByTitle("Send Message"));
         expect(mockProps.onSendMessage).toHaveBeenCalledWith("test message");
+    });
+
+    it("shows mentions dropdown when @ is typed", () => {
+        render(<ChatPanel {...mockProps} />);
+        const input = screen.getByPlaceholderText("Ask Copilot... (use @ to mention files)");
+        fireEvent.change(input, { target: { value: "@" } });
+        expect(screen.getByText("src/index.ts")).toBeInTheDocument();
+    });
+
+    it("calls onAddContext when a mention is selected", () => {
+        render(<ChatPanel {...mockProps} />);
+        const input = screen.getByPlaceholderText("Ask Copilot... (use @ to mention files)");
+        fireEvent.change(input, { target: { value: "@src" } });
+        const mentionBtn = screen.getByText("src/index.ts");
+        fireEvent.click(mentionBtn);
+        expect(mockProps.onAddContext).toHaveBeenCalledWith("src/index.ts");
+        expect(input).toHaveValue("@index.ts");
     });
 });

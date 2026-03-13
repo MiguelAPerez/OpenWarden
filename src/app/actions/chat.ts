@@ -306,12 +306,13 @@ export async function chatWithAgent(
 CRITICAL INSTRUCTIONS:
 1. When you want to suggest code changes, you MUST use the following format for EACH file:
 
-[INTERNAL_FILE_CHANGE: path/to/file.ext]
+[INTERNAL_FILE_CHANGE_START: path/to/file.ext]
 \`\`\`
 full content of the file goes here...
 \`\`\`
+[INTERNAL_FILE_CHANGE_END: path/to/file.ext]
 
-2. You can suggest changes for multiple files. Each MUST start with the [INTERNAL_FILE_CHANGE: path] marker.
+2. You can suggest changes for multiple files. Each MUST be wrapped in [INTERNAL_FILE_CHANGE_START: path] and [INTERNAL_FILE_CHANGE_END: path] markers.
 3. DO NOT use diff format (with -/+ lines). Provide the ENTIRE updated file content.
 4. DO NOT ADD ANY FRONTMATTER, YAML HEADERS, OR "---" DELIMITERS AT THE TOP OF YOUR RESPONSE OR AROUND CODE BLOCKS.
 5. Your response should be clean Markdown.
@@ -355,9 +356,9 @@ function parseDiffs(content: string, activeFilePath: string | null, activeFileCo
     const filesChanged: Record<string, FileChange> = {};
     let cleanContent = content;
 
-    // Simple regex-based diff parser
-    // Looking for: [INTERNAL_FILE_CHANGE: path/to/file]\n```\n...\n```
-    const fileBlockRegex = /\[INTERNAL_FILE_CHANGE:\s*([^\s\]\n]+)\][\s\S]*?```(?:[\w-]*)?\n([\s\S]*?)```/g;
+    // Simplified regex-based diff parser using explicit START/END markers
+    // Looking for: [INTERNAL_FILE_CHANGE_START: path]\n```\n...\n```\n[INTERNAL_FILE_CHANGE_END: path]
+    const fileBlockRegex = /\[INTERNAL_FILE_CHANGE_START:\s*([^\s\]\n]+)\][\s\S]*?```(?:[\w-]*)?\n([\s\S]*?)\n```\n\[INTERNAL_FILE_CHANGE_END:\s*\1\]/g;
     let match;
 
     while ((match = fileBlockRegex.exec(content)) !== null) {
@@ -377,7 +378,7 @@ function parseDiffs(content: string, activeFilePath: string | null, activeFileCo
     }
 
     // Secondary cleanup: strip any stray markers or labels that might have leaked
-    cleanContent = cleanContent.replace(/\[INTERNAL_FILE_CHANGE:.*?\]/g, '');
+    cleanContent = cleanContent.replace(/\[INTERNAL_FILE_CHANGE(?:_START|_END|):.*?\]/g, '');
     cleanContent = cleanContent.replace(/(?:FILE|FILE_CHANGE|PATH):\s*[^\s\n]+/gi, '');
 
     // Fallback: search for ANY code block if no FILE: tag was found but we have an active file
