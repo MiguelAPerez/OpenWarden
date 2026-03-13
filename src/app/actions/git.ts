@@ -301,3 +301,22 @@ export async function getGitLog(repoId: string, limit: number = 50) {
         return { success: false, log: "Failed to load git log" };
     }
 }
+
+/**
+ * Gets the current active branch name for the repository.
+ */
+export async function getCurrentBranch(repoId: string) {
+    const user = await getUserSession();
+    const repo = db.select().from(repositories).where(eq(repositories.id, repoId)).get();
+    if (!repo) throw new Error("Repository not found");
+
+    const workspaceRepoDir = path.join(WORKSPACES_BASE_DIR, user.id, repo.fullName);
+
+    try {
+        const { stdout } = await execAsync(`git -C "${workspaceRepoDir}" rev-parse --abbrev-ref HEAD`);
+        return { success: true, branch: stdout.trim() };
+    } catch (e) {
+        console.error("Failed to get current branch", e);
+        return { success: false, branch: "unknown" };
+    }
+}

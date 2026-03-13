@@ -23,7 +23,8 @@ import {
     pushChanges,
     stageFile,
     unstageFile,
-    setupGitAuth
+    setupGitAuth,
+    getCurrentBranch
 } from "@/app/actions/git";
 import {
     getRepoFileTree,
@@ -104,6 +105,14 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
 
     const refreshGit = useCallback(() => setGitRefreshKey(prev => prev + 1), []);
 
+    const syncCurrentBranch = useCallback(async () => {
+        if (!selectedRepoId) return;
+        const res = await getCurrentBranch(selectedRepoId);
+        if (res.success) {
+            setSelectedBranch(current => current !== res.branch ? res.branch : current);
+        }
+    }, [selectedRepoId]);
+
     const loadChangedFiles = useCallback(async (repoId: string) => {
         const changes = await getWorkspaceChangedFiles(repoId);
         setChangedFiles(changes);
@@ -151,6 +160,8 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
 
                 const protection = await getBranchProtection();
                 if (active) setIsMainProtected(protection);
+                
+                await syncCurrentBranch();
             } catch (e) {
                 console.error("Failed to init workspace", e);
             } finally {
@@ -177,7 +188,7 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
         detectSandbox();
 
         return () => { active = false; };
-    }, [selectedRepoId, addLog]);
+    }, [selectedRepoId, addLog, syncCurrentBranch]);
 
     // Load branch constraints when repo + branch changes
     useEffect(() => {
@@ -217,7 +228,7 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
         return () => { active = false; };
         // We omit isTerminalOpen to avoid re-triggering when we auto-open it
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedRepoId, selectedBranch, isLoadingInit, loadChangedFiles, addLog, isFollowMode]);
+    }, [selectedRepoId, selectedBranch, isLoadingInit, loadChangedFiles, addLog, isFollowMode, isMainProtected]);
 
     const handleFileSelect = async (path: string) => {
 
@@ -432,6 +443,15 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
         if (isFollowMode) addLog("info", `Committing: ${commitMessage}`);
 
         try {
+            // Safety Check: Ground truth branch verification
+            const branchRes = await getCurrentBranch(selectedRepoId);
+            if (branchRes.success && branchRes.branch === "main" && isMainProtected) {
+                alert("Cannot commit directly to protected branch 'main'. Please switch branches.");
+                await syncCurrentBranch();
+                setIsCommitting(false);
+                return;
+            }
+
             const res = await commitChanges(selectedRepoId, commitMessage);
             if (res.success) {
                 if (isFollowMode) addLog("stdout", res.stdout);
@@ -455,6 +475,15 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
         if (isFollowMode) addLog("info", `Pushing branch: ${selectedBranch}`);
 
         try {
+            // Safety Check: Ground truth branch verification
+            const branchRes = await getCurrentBranch(selectedRepoId);
+            if (branchRes.success && branchRes.branch === "main" && isMainProtected) {
+                alert("Cannot push directly to protected branch 'main'. Please switch branches.");
+                await syncCurrentBranch();
+                setIsPushing(false);
+                return;
+            }
+
             const res = await pushChanges(selectedRepoId, selectedBranch);
             if (res.success) {
                 if (isFollowMode) addLog("stdout", res.stdout);
@@ -479,6 +508,10 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
             const res = await executeSandboxCommand(activeSandbox.id, command, repo?.name);
             if (res.stdout) addLog("stdout", res.stdout);
             if (res.stderr) addLog("stderr", res.stderr);
+            
+            // Sync branch state after command execution in case user switched branches in terminal
+            await syncCurrentBranch();
+
             if (!res.success && !res.stderr && !res.stdout) {
                  addLog("stderr", "Command failed with no output");
             }
@@ -617,17 +650,20 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
                                                                 <button 
                                                                     onClick={handlePush}
                                                                     disabled={isPushing || (isMainProtected && selectedBranch === "main")}
-                                                                    className="px-3 py-2 text-xs font-bold bg-foreground/10 text-foreground rounded-lg hover:bg-foreground/20 disabled:opacity-50 transition-all active:scale-[0.98]"
+                                                                    className="px-3 py-2 text-xs font-bold bg-foreground/10 text-foreground rounded-lg hover:bg-foreground/20 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center gap-2"
                                                                     title="Push Changes"
                                                                 >
                                                                     {isPushing ? (
                                                                         <div className="w-4 h-4 border-2 border-foreground/30 border-t-foreground rounded-full animate-spin" />
                                                                     ) : (
-                                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                                                            <polyline points="17 8 12 3 7 8"></polyline>
-                                                                            <line x1="12" y1="3" x2="12" y2="15"></line>
-                                                                        </svg>
+                                                                        <>
+                                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                                                                <polyline points="17 8 12 3 7 8"></polyline>
+                                                                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                                                                            </svg>
+                                                                            {isMainProtected && selectedBranch === "main" && "Push Protected"}
+                                                                        </>
                                                                     )}
                                                                 </button>
                                                             </div>

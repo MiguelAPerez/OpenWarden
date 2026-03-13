@@ -17,6 +17,7 @@ jest.mock("@/app/actions/git", () => ({
     unstageFile: jest.fn(),
     setupGitAuth: jest.fn().mockResolvedValue({ success: true }),
     getGitLog: jest.fn().mockResolvedValue({ success: true, log: "mock log" }),
+    getCurrentBranch: jest.fn().mockResolvedValue({ success: true, branch: "main" }),
 }));
 
 jest.mock("@/app/actions/settings", () => ({
@@ -98,6 +99,12 @@ jest.mock("../components/ChatPanel", () => {
     );
     MockChatPanel.displayName = "MockChatPanel";
     return MockChatPanel;
+});
+
+jest.mock("../components/GitLog", () => {
+    const MockGitLog = () => <div data-testid="git-log">Mock Git Log</div>;
+    MockGitLog.displayName = "MockGitLog";
+    return MockGitLog;
 });
 
 describe("WorkspaceClient", () => {
@@ -300,6 +307,8 @@ describe("WorkspaceClient", () => {
             fireEvent.click(screen.getByTitle("Source Control"));
         });
 
+        (gitActions.getCurrentBranch as jest.Mock).mockResolvedValue({ success: true, branch: "dev" });
+
         const commitInput = screen.getByPlaceholderText("Commit message...");
         await act(async () => {
             fireEvent.change(commitInput, { target: { value: "test commit" } });
@@ -328,13 +337,15 @@ describe("WorkspaceClient", () => {
             fireEvent.click(screen.getByTitle("Source Control"));
         });
 
+        (gitActions.getCurrentBranch as jest.Mock).mockResolvedValue({ success: true, branch: "dev" });
+
         const pushButton = await screen.findByRole("button", { name: /push/i });
 
         await act(async () => {
             fireEvent.click(pushButton);
         });
 
-        expect(gitActions.pushChanges).toHaveBeenCalledWith("repo-1", "main");
+        expect(gitActions.pushChanges).toHaveBeenCalledWith("repo-1", "dev");
     });
 
     it("stages a file when onStageFile is triggered", async () => {
@@ -417,5 +428,71 @@ describe("WorkspaceClient", () => {
         await waitFor(() => {
             expect(screen.getByText("2")).toBeInTheDocument();
         });
+    });
+
+    it("prevents commit if ground-truth branch is main but UI thinks it is dev", async () => {
+        (settingsActions.getBranchProtection as jest.Mock).mockResolvedValue(true);
+        // Initially returns dev
+        (gitActions.getCurrentBranch as jest.Mock).mockResolvedValueOnce({ success: true, branch: "dev" });
+        (gitActions.getRepoBranches as jest.Mock).mockResolvedValue(["main", "dev"]);
+
+        render(<WorkspaceClient initialRepos={mockRepos} />);
+
+        await act(async () => {
+            fireEvent.click(screen.getByText("Select Repo 1"));
+        });
+
+        // Current branch should be dev now
+        const sourceControlTab = await screen.findByTitle("Source Control");
+        await act(async () => {
+            fireEvent.click(sourceControlTab);
+        });
+
+        // Now mock getCurrentBranch to return main (the accident)
+        (gitActions.getCurrentBranch as jest.Mock).mockResolvedValue({ success: true, branch: "main" });
+
+        const commitInput = await screen.findByPlaceholderText("Commit message...");
+        await act(async () => {
+            fireEvent.change(commitInput, { target: { value: "test commit" } });
+        });
+
+        const commitButton = await screen.findByText("Commit");
+        await act(async () => {
+            fireEvent.click(commitButton);
+        });
+
+        expect(window.alert).toHaveBeenCalledWith(expect.stringContaining("Cannot commit directly to protected branch 'main'"));
+        expect(gitActions.commitChanges).not.toHaveBeenCalled();
+    });
+
+    it("prevents push if ground-truth branch is main but UI thinks it is dev", async () => {
+        (settingsActions.getBranchProtection as jest.Mock).mockResolvedValue(true);
+        // Initially returns dev
+        (gitActions.getCurrentBranch as jest.Mock).mockResolvedValueOnce({ success: true, branch: "dev" });
+        (gitActions.getRepoBranches as jest.Mock).mockResolvedValue(["main", "dev"]);
+
+        render(<WorkspaceClient initialRepos={mockRepos} />);
+
+        await act(async () => {
+            fireEvent.click(screen.getByText("Select Repo 1"));
+        });
+
+        // Wait for initialize to complete and show activity bar
+        const sourceControlTab = await screen.findByTitle("Source Control");
+        await act(async () => {
+            fireEvent.click(sourceControlTab);
+        });
+
+        // Now mock getCurrentBranch to return main
+        (gitActions.getCurrentBranch as jest.Mock).mockResolvedValue({ success: true, branch: "main" });
+
+        const pushButton = await screen.findByTitle("Push Changes");
+
+        await act(async () => {
+            fireEvent.click(pushButton);
+        });
+
+        expect(window.alert).toHaveBeenCalledWith(expect.stringContaining("Cannot push directly to protected branch 'main'"));
+        expect(gitActions.pushChanges).not.toHaveBeenCalled();
     });
 });
