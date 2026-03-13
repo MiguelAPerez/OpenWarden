@@ -1,3 +1,35 @@
+## 0.3.0 (2026-03-12)
+
+### Feat
+
+- **ipados**: support for shift+save and icons
+- **workspace**: adding a gitlog for workspaces
+- **sandboxes**: adding terminal support for workspaces (#27)
+- **sandboxes**: adding support for workspace sandboxes (#26)
+- **search**: jump to search and enter
+- **search**: add jump to search
+- **benchmark**: adding history section
+- **workspace**: adding a git staging component
+- **workspace**: adding commit components
+- **workspaces**: adding a place to agents to suggest changes (#24)
+- **code-editor**: adding a place make quick code edits with an assistant   (#21)
+
+### Fix
+
+- **git**: adding git main checks
+- **benchmark**: start parrell runs after async runs
+- **benchmark**: context patch
+- **benchmark**: reduce polling for inprogress jobs
+
+### Refactor
+
+- **repos**: move repos to work based off userid to have multiple users
+- **benchmark**: update to run async
+- **configs**: context groups remove skill
+- **contextGroups**: adding some functionality
+- **contextGroups**: breaking up large componet
+- **navbar**: adding tracker of where you are
+
 ## 0.2.0 (2026-03-10)
 
 ### Feat
