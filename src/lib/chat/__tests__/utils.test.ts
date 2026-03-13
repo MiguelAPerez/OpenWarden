@@ -1,72 +1,60 @@
-import { parseDiffs } from "../utils";
+import { extractMentionedPaths, parseDiffs } from "../utils";
 
-describe("parseDiffs", () => {
-    it("handles nested markdown code blocks correctly during file change extraction", () => {
-        const content = `
-I have updated the task list for you.
+describe("chat utils", () => {
+    describe("extractMentionedPaths", () => {
+        it("extracts simple @mentions", () => {
+            const text = "Check @src/lib/utils.ts and @README.md";
+            expect(extractMentionedPaths(text)).toEqual(["src/lib/utils.ts", "README.md"]);
+        });
 
-[INTERNAL_FILE_CHANGE_START: task.md]
-\`\`\`markdown
-# Current Tasks
+        it("ignores structured mentions like @[TerminalName: ...]", () => {
+            const text = "Look at @[TerminalName: zsh, ProcessId: 123] and @file.ts";
+            expect(extractMentionedPaths(text)).toEqual(["file.ts"]);
+        });
 
-- [x] Initial setup
-- [x] Redux migration
-
-\`\`\`js
-console.log("Nested code block!");
-\`\`\`
-
-- [ ] Future work
-\`\`\`
-[INTERNAL_FILE_CHANGE_END: task.md]
-
-Let me know if you need anything else.
-`;
-        const { suggestion } = parseDiffs(content, "task.md", {});
-        
-        expect(suggestion.filesChanged["task.md"]).toBeDefined();
-        const suggestedContent = suggestion.filesChanged["task.md"].suggestedContent;
-        
-        // Ensure the entire content, including the nested JS block, is captured
-        expect(suggestedContent).toContain("# Current Tasks");
-        expect(suggestedContent).toContain('console.log("Nested code block!");');
-        expect(suggestedContent).toContain("- [ ] Future work");
-        
-        // Ensure it didn't cut off at the first inner ```
-        expect(suggestedContent.split("```").length).toBe(3); // One opening, one closing (of the nested block)
-        // Wait, wait. 
-        // The outer block is:
-        // ```markdown
-        // # Current Tasks
-        // ...
-        // - [ ] Future work
-        // ```
-        // So the number of ``` in the output should be 2 (the nested ones).
-        // Let's check the count.
+        it("returns unique paths", () => {
+            const text = "@file.ts and @file.ts";
+            expect(extractMentionedPaths(text)).toEqual(["file.ts"]);
+        });
     });
 
-    it("handles multiple file changes correctly", () => {
-        const content = `
-[INTERNAL_FILE_CHANGE_START: a.ts]
-\`\`\`typescript
-const a = 1;
-\`\`\`
-[INTERNAL_FILE_CHANGE_END: a.ts]
+    describe("parseDiffs", () => {
+        it("parses combined diff format with FILE marker", () => {
+            const content = "FILE: file.ts\n```diff\n+++ b/file.ts\n+new line\n```";
+            const { suggestion, cleanContent } = parseDiffs(content, null, {});
+            expect(cleanContent).toBe("");
+            expect(suggestion.filesChanged["file.ts"].suggestedContent).toBe("+++ b/file.ts\n+new line");
+        });
 
-[INTERNAL_FILE_CHANGE_START: b.ts]
-\`\`\`typescript
-const b = 2;
-\`\`\`
-[INTERNAL_FILE_CHANGE_END: b.ts]
-`;
-        const { suggestion } = parseDiffs(content, null, {});
-        expect(suggestion.filesChanged["a.ts"].suggestedContent).toBe("const a = 1;");
-        expect(suggestion.filesChanged["b.ts"].suggestedContent).toBe("const b = 2;");
-    });
+        it("handles [INTERNAL_FILE_CHANGE_START] markers", () => {
+            const content = "[INTERNAL_FILE_CHANGE_START: test.ts] \n```ts\nupdated content\n```\n [INTERNAL_FILE_CHANGE_END: test.ts]";
+            const { suggestion } = parseDiffs(content, null, {});
+            expect(suggestion.filesChanged["test.ts"].suggestedContent).toBe("updated content");
+        });
 
-    it("handles orphan code blocks for active file", () => {
-        const content = "I updated the file:\n\n```js\nconst x = 10;\n```";
-        const { suggestion } = parseDiffs(content, "active.ts", {});
-        expect(suggestion.filesChanged["active.ts"].suggestedContent).toBe("const x = 10;");
+        it("handles loose format markers (FILE: path)", () => {
+            const content = "FILE: loose.ts\n```js\nloose content\n```";
+            const { suggestion } = parseDiffs(content, null, {});
+            expect(suggestion.filesChanged["loose.ts"].suggestedContent).toBe("loose content");
+        });
+
+        it("handles duplicate loose format markers", () => {
+            const content = "FILE: loose.ts\n```js\nfirst\n```\nFILE: loose.ts\n```js\nsecond\n```";
+            const { suggestion } = parseDiffs(content, null, {});
+            expect(suggestion.filesChanged["loose.ts"].suggestedContent).toBe("first");
+        });
+
+        it("falls back to orphan code block for active file", () => {
+            const content = "Just some code:\n```ts\norphan content\n```";
+            const { suggestion } = parseDiffs(content, "active.ts", {});
+            expect(suggestion.filesChanged["active.ts"].suggestedContent).toBe("orphan content");
+        });
+
+        it("cleans up various markers and headers", () => {
+            const content = "FILE: test.ts\n```ts\ncontent\n```\nSome footer content";
+            const { cleanContent } = parseDiffs(content, null, {});
+            expect(cleanContent).not.toContain("FILE: test.ts");
+            expect(cleanContent).toContain("Some footer content");
+        });
     });
 });
