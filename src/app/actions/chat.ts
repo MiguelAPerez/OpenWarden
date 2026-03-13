@@ -304,14 +304,14 @@ export async function chatWithAgent(
     systemPrompt += `
 
 CRITICAL INSTRUCTIONS:
-1. When you want to suggest code changes, you MUST provide the FULL CONTENT of the file in a code block like this:
+1. When you want to suggest code changes, you MUST use the following format for EACH file:
 
-FILE: path/to/file.ext
+[INTERNAL_FILE_CHANGE: path/to/file.ext]
 \`\`\`
 full content of the file goes here...
 \`\`\`
 
-2. You can suggest changes for multiple files. Each must be preceded by the "FILE: path" header.
+2. You can suggest changes for multiple files. Each MUST start with the [INTERNAL_FILE_CHANGE: path] marker.
 3. DO NOT use diff format (with -/+ lines). Provide the ENTIRE updated file content.
 4. DO NOT ADD ANY FRONTMATTER, YAML HEADERS, OR "---" DELIMITERS AT THE TOP OF YOUR RESPONSE OR AROUND CODE BLOCKS.
 5. Your response should be clean Markdown.
@@ -356,8 +356,8 @@ function parseDiffs(content: string, activeFilePath: string | null, activeFileCo
     let cleanContent = content;
 
     // Simple regex-based diff parser
-    // Looking for: FILE: path/to/file\n```diff\n...\n```
-    const fileBlockRegex = /FILE:\s*([^\s\n]+)[\s\S]*?```(?:diff)?\n([\s\S]*?)```/g;
+    // Looking for: [INTERNAL_FILE_CHANGE: path/to/file]\n```\n...\n```
+    const fileBlockRegex = /\[INTERNAL_FILE_CHANGE:\s*([^\s\]\n]+)\][\s\S]*?```(?:[\w-]*)?\n([\s\S]*?)```/g;
     let match;
 
     while ((match = fileBlockRegex.exec(content)) !== null) {
@@ -375,6 +375,10 @@ function parseDiffs(content: string, activeFilePath: string | null, activeFileCo
             suggestedContent: fullContent.trim()
         };
     }
+
+    // Secondary cleanup: strip any stray markers or labels that might have leaked
+    cleanContent = cleanContent.replace(/\[INTERNAL_FILE_CHANGE:.*?\]/g, '');
+    cleanContent = cleanContent.replace(/(?:FILE|FILE_CHANGE|PATH):\s*[^\s\n]+/gi, '');
 
     // Fallback: search for ANY code block if no FILE: tag was found but we have an active file
     if (Object.keys(filesChanged).length === 0 && activeFilePath) {

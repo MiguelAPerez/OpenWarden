@@ -270,7 +270,7 @@ export default function EditorArea({
     };
 
     return (
-        <div className="flex flex-col h-full bg-[#1e1e1e]">
+        <div className="flex flex-col h-full bg-[#1e1e1e] overflow-hidden">
             <style>{`
                 .git-diff-added-margin {
                     border-left: 3px solid #2ea043;

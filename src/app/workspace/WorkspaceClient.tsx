@@ -705,8 +705,8 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
                     <PanelResizeHandle className="w-1 bg-border hover:bg-primary/50 transition-colors" />
                     
                     <Panel defaultSize={55} minSize={30}>
-                        <PanelGroup orientation="vertical">
-                            <Panel defaultSize={70} minSize={40}>
+                        <PanelGroup orientation="vertical" key={isTerminalOpen ? "terminal-open" : "terminal-closed"}>
+                            <Panel defaultSize={isTerminalOpen ? 70 : 100} minSize={30}>
                                 <EditorArea
                                     tabs={openTabs}
                                     activeTabPath={activeTabPath}
