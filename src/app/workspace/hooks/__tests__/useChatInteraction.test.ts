@@ -12,7 +12,6 @@ describe("useChatInteraction", () => {
     const handleSaveFile = jest.fn();
     const loadChangedFiles = jest.fn();
     const refreshGit = jest.fn();
-    const handleFileSelect = jest.fn();
     
     const mockState = {
         workspace: {
@@ -44,7 +43,7 @@ describe("useChatInteraction", () => {
     });
 
     it("handles sending a message", async () => {
-        const { result } = renderHook(() => useChatInteraction(handleSaveFile, loadChangedFiles, refreshGit, handleFileSelect));
+        const { result } = renderHook(() => useChatInteraction(handleSaveFile, loadChangedFiles, refreshGit));
         
         await act(async () => {
             await result.current.handleSendMessage("fix bug");
