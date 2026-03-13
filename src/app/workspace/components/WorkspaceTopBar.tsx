@@ -18,6 +18,7 @@ interface WorkspaceTopBarProps {
     isTerminalOpen: boolean;
     onToggleTerminal: () => void;
     sandboxName?: string;
+    isProtected?: boolean;
 }
 
 export default function WorkspaceTopBar({
@@ -30,7 +31,8 @@ export default function WorkspaceTopBar({
     onCreateBranch,
     isTerminalOpen,
     onToggleTerminal,
-    sandboxName
+    sandboxName,
+    isProtected
 }: WorkspaceTopBarProps) {
     const [isCreatingBranch, setIsCreatingBranch] = React.useState(false);
     const [newBranchName, setNewBranchName] = React.useState("");
@@ -125,19 +127,21 @@ export default function WorkspaceTopBar({
                         <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-tight">Sandbox: {sandboxName}</span>
                     </div>
                 )}
-                <button
-                    onClick={onToggleTerminal}
-                    className={`flex items-center gap-2 px-3 py-1 rounded-md text-xs font-semibold transition-all ${
-                        isTerminalOpen 
-                        ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20' 
-                        : 'bg-foreground/5 text-foreground/60 hover:bg-foreground/10 hover:text-foreground'
-                    }`}
-                >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="m7 15 5-5-5-5"/><path d="m11 19 6-6-6-6"/>
-                    </svg>
-                    Terminal
-                </button>
+                {!isProtected && (
+                    <button
+                        onClick={onToggleTerminal}
+                        className={`flex items-center gap-2 px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                            isTerminalOpen 
+                            ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20' 
+                            : 'bg-foreground/5 text-foreground/60 hover:bg-foreground/10 hover:text-foreground'
+                        }`}
+                    >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="m7 15 5-5-5-5"/><path d="m11 19 6-6-6-6"/>
+                        </svg>
+                        Terminal
+                    </button>
+                )}
             </div>
         </div>
     );

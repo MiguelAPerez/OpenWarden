@@ -32,6 +32,7 @@ import {
     revertWorkspaceFile,
     FileNode
 } from "@/app/actions/workspace-files";
+import { getBranchProtection } from "@/app/actions/settings";
 
 
 export interface FileChange {
@@ -95,6 +96,7 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
     const [activeSandbox, setActiveSandbox] = useState<SandboxInfo | null>(null);
 
     const [isLoadingInit, setIsLoadingInit] = useState(false);
+    const [isMainProtected, setIsMainProtected] = useState(true);
 
     const loadChangedFiles = useCallback(async (repoId: string) => {
         const changes = await getWorkspaceChangedFiles(repoId);
@@ -140,6 +142,9 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
 
                 const initialBranch = bs.includes("main") ? "main" : (bs[0] || "main");
                 setSelectedBranch(initialBranch);
+
+                const protection = await getBranchProtection();
+                if (active) setIsMainProtected(protection);
             } catch (e) {
                 console.error("Failed to init workspace", e);
             } finally {
@@ -171,7 +176,10 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
         async function loadBranchEnv() {
             try {
                 const res = await checkoutBranch(selectedRepoId, selectedBranch);
-                if (active && isFollowMode) {
+                const isProtectedBranch = isMainProtected && selectedBranch === "main";
+                if (isProtectedBranch) {
+                    setIsTerminalOpen(false);
+                } else if (active && isFollowMode) {
                     if (!isTerminalOpen) setIsTerminalOpen(true);
                     // Only log if it's NOT a redundant "Already on..." tip
                     if (res?.stdout) addLog("stdout", res.stdout);
@@ -498,6 +506,7 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
                 isTerminalOpen={isTerminalOpen}
                 onToggleTerminal={() => setIsTerminalOpen(!isTerminalOpen)}
                 sandboxName={activeSandbox?.name}
+                isProtected={isMainProtected && selectedBranch === "main"}
             />
 
             <div className="flex-1 overflow-hidden relative group">
@@ -534,14 +543,14 @@ export default function WorkspaceClient({ initialRepos }: { initialRepos: Repo[]
                                         <div className="flex gap-2">
                                             <button 
                                                 onClick={handleCommit}
-                                                disabled={isCommitting || !commitMessage.trim()}
+                                                disabled={isCommitting || !commitMessage.trim() || (isMainProtected && selectedBranch === "main")}
                                                 className="flex-1 p-2 text-xs font-semibold bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50 transition-colors"
                                             >
-                                                {isCommitting ? "Committing..." : "Commit"}
+                                                {isCommitting ? "Committing..." : (isMainProtected && selectedBranch === "main" ? "Branch Protected" : "Commit")}
                                             </button>
                                             <button 
                                                 onClick={handlePush}
-                                                disabled={isPushing}
+                                                disabled={isPushing || (isMainProtected && selectedBranch === "main")}
                                                 className="p-2 text-xs font-semibold bg-foreground/10 text-foreground rounded hover:bg-foreground/20 disabled:opacity-50 transition-colors"
                                             >
                                                 {isPushing ? "Pushing..." : "Push"}
