@@ -81,13 +81,11 @@ export function useWorkspaceInit() {
                 if (!active) return;
                 dispatch(setBranches(bs));
 
-                // Only set default branch if none is selected
                 if (!selectedBranch) {
                     const initialBranch = bs.includes("main") ? "main" : (bs[0] || "main");
                     dispatch(setSelectedBranch(initialBranch));
                 }
 
-                // Load file tree and changes
                 const tree = await getRepoFileTree(selectedRepoId);
                 dispatch(setFileTree(tree));
 
@@ -96,7 +94,7 @@ export function useWorkspaceInit() {
 
                 const protection = await getBranchProtection();
                 if (active) dispatch(setIsMainProtected(protection));
-                
+
                 await syncCurrentBranch();
             } catch (e) {
                 console.error("Failed to init workspace", e);
