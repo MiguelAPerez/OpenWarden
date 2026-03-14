@@ -3,8 +3,12 @@ import { getPromptFromFile } from "@/app/actions/prompts";
 
 export class PromptBuilder {
     static async buildSystemPrompt(contextData: ContextData, currentFilePath: string | null, currentFileContent: string) {
-        const { repo, personalityPrompt, enabledSkills, enabledTools } = contextData;
-        let prompt = personalityPrompt || (await getPromptFromFile("DOCUMENTATION"));
+        const { repo, agentPersonalityPrompt, enabledSkills, enabledTools } = contextData;
+        let prompt = await getPromptFromFile("DOCUMENTATION");
+
+        if (agentPersonalityPrompt) {
+            prompt = `${agentPersonalityPrompt}\n\n${prompt}`;
+        }
 
         if (enabledSkills.length > 0) {
             prompt += "\n\nAvailable Skills:\n" + enabledSkills.map((s) => `- ${s.name}: ${s.description}\n${s.content}`).join("\n\n");

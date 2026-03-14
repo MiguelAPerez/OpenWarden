@@ -14,7 +14,7 @@ describe("PromptBuilder", () => {
 
     const mockContext: ContextData = {
         repo: mockRepo as any, // eslint-disable-line @typescript-eslint/no-explicit-any
-        personalityPrompt: "You are a specialized bot.",
+        agentPersonalityPrompt: "You are a specialized bot.",
         enabledSkills: [
             { 
                 name: "Skill1", 
@@ -60,7 +60,7 @@ describe("PromptBuilder", () => {
     });
 
     it("should use default personality if none provided", async () => {
-        const context = { ...mockContext, personalityPrompt: "" };
+        const context = { ...mockContext, agentPersonalityPrompt: "" };
         const prompt = await PromptBuilder.buildSystemPrompt(context, null, "");
         expect(prompt).toContain("You are a documentation specialist.");
     });

@@ -30,7 +30,7 @@ import { repositories, agentConfigurations, skills, tools, ollamaConfigurations 
 export interface ContextData {
     repo: InferSelectModel<typeof repositories>;
     agentConfig: InferSelectModel<typeof agentConfigurations>;
-    personalityPrompt: string | null;
+    agentPersonalityPrompt: string | null;
     enabledSkills: InferSelectModel<typeof skills>[];
     enabledTools: InferSelectModel<typeof tools>[];
     ollamaConfig: InferSelectModel<typeof ollamaConfigurations>;
