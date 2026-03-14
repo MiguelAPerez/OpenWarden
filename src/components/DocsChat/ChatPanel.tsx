@@ -4,6 +4,10 @@ import React, { useState } from "react";
 import { Repository } from "./DocsSidebar";
 import { chatWithDoc } from "@/app/actions/chat";
 import { AgentConfig } from "@/types/agent";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 interface ChatPanelProps {
     repo: Repository;
@@ -81,11 +85,43 @@ export default function ChatPanel({ repo, filePath, onSelectFile, agents }: Chat
                         <div 
                             className={`max-w-[85%] rounded-2xl px-4 py-2 text-sm ${
                                 msg.role === "user" 
-                                    ? "bg-foreground text-background rounded-tr-sm" 
-                                    : "bg-foreground/10 rounded-tl-sm whitespace-pre-wrap"
+                                    ? "bg-foreground text-background rounded-tr-sm whitespace-pre-wrap" 
+                                    : "bg-foreground/10 rounded-tl-sm"
                             }`}
                         >
-                            {msg.content}
+                            {msg.role === "agent" ? (
+                                <div className="prose prose-sm dark:prose-invert max-w-none leading-relaxed prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-li:my-0 prose-code:text-foreground prose-code:bg-foreground/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none">
+                                    <ReactMarkdown 
+                                        remarkPlugins={[remarkGfm]}
+                                        components={{
+                                            code(props: { inline?: boolean; className?: string; children?: React.ReactNode }) {
+                                                const { inline, className, children } = props;
+                                                const match = /language-(\w+)/.exec(className || '');
+                                                return !inline && match ? (
+                                                    <div className="my-2 rounded-lg overflow-hidden border border-border/50 shadow-sm">
+                                                        <SyntaxHighlighter
+                                                            style={vscDarkPlus as { [key: string]: React.CSSProperties }}
+                                                            language={match[1]}
+                                                            PreTag="div"
+                                                            customStyle={{ margin: 0, padding: '1rem', fontSize: '11px' }}
+                                                        >
+                                                            {String(children).replace(/\n$/, '')}
+                                                        </SyntaxHighlighter>
+                                                    </div>
+                                                ) : (
+                                                    <code className={className}>
+                                                        {children}
+                                                    </code>
+                                                );
+                                            }
+                                        }}
+                                    >
+                                        {msg.content}
+                                    </ReactMarkdown>
+                                </div>
+                            ) : (
+                                msg.content
+                            )}
                         </div>
                     </div>
                 ))}

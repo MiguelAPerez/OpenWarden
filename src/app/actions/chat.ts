@@ -58,7 +58,12 @@ export async function chatWithAgentInternal(
     const client = ChatClientFactory.getClient(contextData);
 
     // Build the system prompt with the "Diff Generator" instructions
-    let systemPrompt = await getPromptFromFile("CODER");
+    const [baseFormat, coderInstructions] = await Promise.all([
+        getPromptFromFile("FORMAT"),
+        getPromptFromFile("CODER")
+    ]);
+
+    let systemPrompt = `${baseFormat}\n\n${coderInstructions}`;
 
     if (contextData.agentPersonalityPrompt) {
         systemPrompt = `${contextData.agentPersonalityPrompt}\n\n${systemPrompt}`;

@@ -22,9 +22,10 @@ Is a platform designed to help you manage your codebases
       - `WORKFLOW.md` - How the agent works (rules to follow)
       - `IDENTITY.md` - Who the agent is
   - `system`
-    - `DOCUMENTION.md` - How the agent responds to documentation requests
+    - `DOCUMENTATION.md` - How the agent responds to documentation requests
     - `CODER.md` - How the agent responds to coding requests
-    - `REVIEWER.md` - How the agent responds to review requests
+    - `REVIEWER.md` - How the agent responds to code review requests
+    - `FORMAT.md` - How the agent formats its responses (our panel compoent generates the UI)
   - `skills` - The skills the agent has
     - `{name}`
       - `SKILL.md` - Description of the skill
