@@ -13,7 +13,7 @@ import { listSandboxes, executeSandboxCommand } from "./docker-sandboxes";
 import { getAuthenticatedCloneUrl } from "@/lib/git-auth";
 
 const execAsync = promisify(exec);
-const WORKSPACES_BASE_DIR = path.join(process.cwd(), "data", "workspaces");
+const DATA_BASE_DIR = path.join(process.cwd(), "data");
 
 // Helper to get authenticated user
 async function getUserSession() {
@@ -28,7 +28,7 @@ export async function getRepoBranches(repoId: string) {
     const repo = db.select().from(repositories).where(eq(repositories.id, repoId)).get();
     if (!repo) throw new Error("Repository not found");
 
-    const workspaceRepoDir = path.join(WORKSPACES_BASE_DIR, user.id, repo.fullName);
+    const workspaceRepoDir = path.join(DATA_BASE_DIR, user.id, "workspaces", repo.fullName);
 
     try {
         const { stdout } = await execAsync(`git -C "${workspaceRepoDir}" branch -a`);
@@ -50,7 +50,7 @@ export async function checkoutBranch(repoId: string, branchName: string) {
     const repo = db.select().from(repositories).where(eq(repositories.id, repoId)).get();
     if (!repo) throw new Error("Repository not found");
 
-    const workspaceRepoDir = path.join(WORKSPACES_BASE_DIR, user.id, repo.fullName);
+    const workspaceRepoDir = path.join(DATA_BASE_DIR, user.id, "workspaces", repo.fullName);
 
     try {
         // Try local checkout
@@ -80,7 +80,7 @@ export async function createBranch(repoId: string, branchName: string) {
     const repo = db.select().from(repositories).where(eq(repositories.id, repoId)).get();
     if (!repo) throw new Error("Repository not found");
 
-    const workspaceRepoDir = path.join(WORKSPACES_BASE_DIR, user.id, repo.fullName);
+    const workspaceRepoDir = path.join(DATA_BASE_DIR, user.id, "workspaces", repo.fullName);
 
     try {
         const { stdout, stderr } = await execAsync(`git -C "${workspaceRepoDir}" checkout -b "${branchName}"`);
@@ -102,7 +102,7 @@ export async function commitChanges(repoId: string, message: string) {
     const repo = db.select().from(repositories).where(eq(repositories.id, repoId)).get();
     if (!repo) throw new Error("Repository not found");
 
-    const workspaceRepoDir = path.join(WORKSPACES_BASE_DIR, user.id, repo.fullName);
+    const workspaceRepoDir = path.join(DATA_BASE_DIR, user.id, "workspaces", repo.fullName);
 
     try {
         const dockerStatus = await checkGitDockerStatus();
@@ -147,7 +147,7 @@ export async function pushChanges(repoId: string, branchName: string) {
     const repo = db.select().from(repositories).where(eq(repositories.id, repoId)).get();
     if (!repo) throw new Error("Repository not found");
 
-    const workspaceRepoDir = path.join(WORKSPACES_BASE_DIR, user.id, repo.fullName);
+    const workspaceRepoDir = path.join(DATA_BASE_DIR, user.id, "workspaces", repo.fullName);
 
     try {
         const authenticatedUrl = await getAuthenticatedCloneUrl({
@@ -207,7 +207,7 @@ export async function stageFile(repoId: string, filePath: string) {
     const repo = db.select().from(repositories).where(eq(repositories.id, repoId)).get();
     if (!repo) throw new Error("Repository not found");
 
-    const workspaceRepoDir = path.join(WORKSPACES_BASE_DIR, user.id, repo.fullName);
+    const workspaceRepoDir = path.join(DATA_BASE_DIR, user.id, "workspaces", repo.fullName);
 
     try {
         await execAsync(`git -C "${workspaceRepoDir}" add "${filePath}"`);
@@ -224,7 +224,7 @@ export async function unstageFile(repoId: string, filePath: string) {
     const repo = db.select().from(repositories).where(eq(repositories.id, repoId)).get();
     if (!repo) throw new Error("Repository not found");
 
-    const workspaceRepoDir = path.join(WORKSPACES_BASE_DIR, user.id, repo.fullName);
+    const workspaceRepoDir = path.join(DATA_BASE_DIR, user.id, "workspaces", repo.fullName);
 
     try {
         // git restore --staged <file> is the modern way to unstage
@@ -268,7 +268,7 @@ export async function setupGitAuth(repoId: string, sandboxId?: string) {
         }
     } else {
         // Fallback to local workspace config
-        const workspaceRepoDir = path.join(WORKSPACES_BASE_DIR, user.id, repo.fullName);
+        const workspaceRepoDir = path.join(DATA_BASE_DIR, user.id, "workspaces", repo.fullName);
         try {
             await execAsync(`git -C "${workspaceRepoDir}" config user.email "agent@coding.agent"`);
             await execAsync(`git -C "${workspaceRepoDir}" config user.name "Coding Agent"`);
@@ -290,7 +290,7 @@ export async function getGitLog(repoId: string, limit: number = 50) {
     const repo = db.select().from(repositories).where(eq(repositories.id, repoId)).get();
     if (!repo) throw new Error("Repository not found");
 
-    const workspaceRepoDir = path.join(WORKSPACES_BASE_DIR, user.id, repo.fullName);
+    const workspaceRepoDir = path.join(DATA_BASE_DIR, user.id, "workspaces", repo.fullName);
 
     try {
         // We use git log --graph --oneline --all --decorate to show the tree
@@ -310,7 +310,7 @@ export async function getCurrentBranch(repoId: string) {
     const repo = db.select().from(repositories).where(eq(repositories.id, repoId)).get();
     if (!repo) throw new Error("Repository not found");
 
-    const workspaceRepoDir = path.join(WORKSPACES_BASE_DIR, user.id, repo.fullName);
+    const workspaceRepoDir = path.join(DATA_BASE_DIR, user.id, "workspaces", repo.fullName);
 
     try {
         const { stdout } = await execAsync(`git -C "${workspaceRepoDir}" rev-parse --abbrev-ref HEAD`);

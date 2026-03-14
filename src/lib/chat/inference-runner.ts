@@ -23,7 +23,7 @@ export class InferenceRunner {
 
         for (let step = 0; step < 3; step++) {
             console.log(`[Chat Inference] Step ${step + 1}/3...`);
-            const systemPrompt = PromptBuilder.buildSystemPrompt(this.contextData, currentFilePath, currentFileContent);
+            const systemPrompt = await PromptBuilder.buildSystemPrompt(this.contextData, currentFilePath, currentFileContent);
             messages[0].content = systemPrompt; // Refresh system prompt with new context if navigated
 
             const content = await this.ollama.chat(messages);

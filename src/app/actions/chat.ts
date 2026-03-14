@@ -7,6 +7,7 @@ import { OllamaClient } from "@/lib/chat/ollama-client";
 import { InferenceRunner } from "@/lib/chat/inference-runner";
 import { ChatMessage, ChatResponse } from "@/lib/chat/types";
 import { extractMentionedPaths, parseDiffs } from "@/lib/chat/utils";
+import { getPromptFromFile } from "@/app/actions/prompts";
 
 export type { ChatMessage, ChatResponse, FileChange, PendingSuggestion } from "@/lib/chat/types";
 
@@ -66,7 +67,7 @@ export async function chatWithAgentInternal(
     );
 
     // Build the system prompt with the "Diff Generator" instructions
-    let systemPrompt = contextData.personalityPrompt || "You are a helpful coding assistant.";
+    let systemPrompt = contextData.personalityPrompt || (await getPromptFromFile("CODER"));
 
     systemPrompt += `
 

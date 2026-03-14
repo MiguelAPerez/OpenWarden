@@ -7,6 +7,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { AgentConfig } from "@/types/agent";
+import { getPromptFromFile } from "./prompts";
 
 export async function getAgentConfigs() {
     const session = await getServerSession(authOptions);
@@ -26,7 +27,7 @@ export async function saveAgentConfig(data: { id?: string; name: string; model: 
                 name: data.name,
                 model: data.model,
                 systemPromptId: data.systemPromptId,
-                systemPrompt: data.systemPrompt || "You are a helpful coding assistant.",
+                systemPrompt: data.systemPrompt || (await getPromptFromFile("CODER")),
                 temperature: data.temperature,
                 updatedAt: now,
             })
@@ -42,7 +43,7 @@ export async function saveAgentConfig(data: { id?: string; name: string; model: 
                 name: data.name,
                 model: data.model,
                 systemPromptId: data.systemPromptId,
-                systemPrompt: data.systemPrompt || "You are a helpful coding assistant.",
+                systemPrompt: data.systemPrompt || (await getPromptFromFile("CODER")),
                 temperature: data.temperature,
                 updatedAt: now,
             })
@@ -87,7 +88,7 @@ export async function syncManagedAgents(agents: AgentConfig[]) {
             name: agent.name,
             model: agent.model,
             systemPromptId: agent.systemPromptId,
-            systemPrompt: agent.systemPrompt || "You are a helpful coding assistant.",
+            systemPrompt: agent.systemPrompt || (await getPromptFromFile("CODER")),
             temperature: agent.temperature,
             isManaged: true,
             updatedAt: new Date(),

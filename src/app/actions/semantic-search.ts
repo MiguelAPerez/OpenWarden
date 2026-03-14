@@ -10,7 +10,7 @@ import { authOptions } from "@/auth";
 import { getOllamaConfig } from "./ollama";
 import { isPathBlocked } from "@/lib/constants";
 
-const REPOS_BASE_DIR = path.join(process.cwd(), "data", "repos");
+const DATA_BASE_DIR = path.join(process.cwd(), "data");
 const CHUNK_SIZE = 1000;
 const CHUNK_OVERLAP = 200;
 const EMBEDDING_MODEL = "nomic-embed-text";
@@ -216,7 +216,7 @@ export async function indexRepositoryCore(repoId: string) {
     const repo = db.select().from(repositories).where(eq(repositories.id, repoId)).get();
     if (!repo) throw new Error("Repository not found");
 
-    const repoDir = path.join(REPOS_BASE_DIR, repo.userId, repo.fullName);
+    const repoDir = path.join(DATA_BASE_DIR, repo.userId, "repos", repo.fullName);
 
     try {
         await fs.access(repoDir);

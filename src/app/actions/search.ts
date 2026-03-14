@@ -8,7 +8,7 @@ import { inArray } from "drizzle-orm";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/auth";
 
-const REPOS_BASE_DIR = path.join(process.cwd(), "data", "repos");
+const DATA_BASE_DIR = path.join(process.cwd(), "data");
 
 export interface SearchMatch {
     filePath: string;
@@ -81,7 +81,7 @@ export async function searchCode(options: CodeSearchOptions): Promise<RepoSearch
     const results: RepoSearchResult[] = [];
 
     for (const repo of userRepos) {
-        const repoDir = path.join(REPOS_BASE_DIR, repo.userId, repo.fullName);
+        const repoDir = path.join(DATA_BASE_DIR, repo.userId, "repos", repo.fullName);
 
         try {
             await fs.access(repoDir);

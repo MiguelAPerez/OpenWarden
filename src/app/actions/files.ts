@@ -14,7 +14,7 @@ import { getRepoFileContentInternal } from "@/lib/repo-utils";
 import { isPathBlocked, ALLOWLIST } from "@/lib/constants";
 
 const execAsync = promisify(exec);
-const REPOS_BASE_DIR = path.join(process.cwd(), "data", "repos");
+const DATA_BASE_DIR = path.join(process.cwd(), "data");
 
 export async function cloneOrUpdateRepository(repoId: string) {
     const session = await getServerSession(authOptions);
@@ -92,9 +92,9 @@ export async function cloneOrUpdateRepository(repoId: string) {
     }
 
     // Ensure base dir exists
-    await fs.mkdir(REPOS_BASE_DIR, { recursive: true });
+    await fs.mkdir(DATA_BASE_DIR, { recursive: true });
 
-    const repoDir = path.join(REPOS_BASE_DIR, session.user.id, repo.fullName);
+    const repoDir = path.join(DATA_BASE_DIR, session.user.id, "repos", repo.fullName);
 
     try {
         await fs.access(repoDir);
@@ -130,7 +130,7 @@ export async function getRepoMarkdownFiles(repoId: string) {
     if (!repo) throw new Error("Repository not found");
     if (repo.userId !== session.user.id) throw new Error("Forbidden");
 
-    const repoDir = path.join(REPOS_BASE_DIR, session.user.id, repo.fullName);
+    const repoDir = path.join(DATA_BASE_DIR, session.user.id, "repos", repo.fullName);
 
     try {
         await fs.access(repoDir);

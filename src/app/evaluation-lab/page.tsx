@@ -3,7 +3,7 @@ import React from "react";
 import { getSystemPrompts, getSystemPromptSets } from "@/app/actions/prompts";
 import { getContextGroups, getLatestBenchmark, getBenchmarkRuns, getCompletedBenchmarks, getActiveBenchmarks, getAllBenchmarksMetadata } from "@/app/actions/benchmarks";
 import { getCachedRepositories, getRepoDataByFullName } from "@/app/actions/repositories";
-import { EvaluationLabClient } from "@/components/EvaluationLab/EvaluationLabClient";
+import { EvaluationLabClient } from "./components/EvaluationLab/EvaluationLabClient";
 import { ContextGroup, Benchmark, BenchmarkRun, BenchmarkEntry, SystemPrompt, SystemPromptSet } from "@/types/agent";
 
 export default async function EvaluationLabPage({

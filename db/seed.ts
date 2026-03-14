@@ -5,9 +5,9 @@ import fs from "fs"
 import path from "path"
 import { systemPrompts, systemPromptSets, contextGroups, permissions, users, userPermissions } from "./schema"
 
-const repoDataPath = path.join(process.cwd(), "data", "repos", "mperez", "devtools")
-const mockContexts = JSON.parse(fs.readFileSync(path.join(repoDataPath, "contexts.json"), "utf8"))
-const { systemPrompts: mockPrompts, systemPromptSets: mockSets } = JSON.parse(fs.readFileSync(path.join(repoDataPath, "systemPrompts.json"), "utf8"))
+// const repoDataPath = path.join(process.cwd(), "data", "repos", "mperez", "devtools")
+// const mockContexts = JSON.parse(fs.readFileSync(path.join(repoDataPath, "contexts.json"), "utf8"))
+// const { systemPrompts: mockPrompts, systemPromptSets: mockSets } = JSON.parse(fs.readFileSync(path.join(repoDataPath, "systemPrompts.json"), "utf8"))
 
 // The default permissions we want every environment to have
 const DEFAULT_PERMISSIONS = [
@@ -104,88 +104,88 @@ async function seed() {
         }
 
         // --- SEED SYSTEM PROMPTS ---
-        console.log("\n🌱 Seeding system prompts...")
-        const promptIdMap = new Map<string, string>(); // mockId -> actualId
+        // console.log("\n🌱 Seeding system prompts...")
+        // const promptIdMap = new Map<string, string>(); // mockId -> actualId
 
-        for (const mp of mockPrompts) {
-            const existing = await db.select().from(systemPrompts).where(eq(systemPrompts.name, mp.name)).get();
-            if (!existing) {
-                console.log(`Inserting system prompt: ${mp.name}`);
-                const [inserted] = await db.insert(systemPrompts).values({
-                    userId: adminUserId,
-                    name: mp.name,
-                    content: mp.content,
-                }).returning();
-                promptIdMap.set(mp.id, inserted.id);
-            } else {
-                console.log(`System prompt already exists: ${mp.name}`);
-                promptIdMap.set(mp.id, existing.id);
-            }
-        }
+        // for (const mp of mockPrompts) {
+        //     const existing = await db.select().from(systemPrompts).where(eq(systemPrompts.name, mp.name)).get();
+        //     if (!existing) {
+        //         console.log(`Inserting system prompt: ${mp.name}`);
+        //         const [inserted] = await db.insert(systemPrompts).values({
+        //             userId: adminUserId,
+        //             name: mp.name,
+        //             content: mp.content,
+        //         }).returning();
+        //         promptIdMap.set(mp.id, inserted.id);
+        //     } else {
+        //         console.log(`System prompt already exists: ${mp.name}`);
+        //         promptIdMap.set(mp.id, existing.id);
+        //     }
+        // }
 
         // --- SEED SYSTEM PROMPT SETS ---
         console.log("\n🌱 Seeding system prompt sets...")
-        for (const ms of mockSets) {
-            const existing = await db.select().from(systemPromptSets).where(eq(systemPromptSets.name, ms.name)).get();
+        // for (const ms of mockSets) {
+        //     const existing = await db.select().from(systemPromptSets).where(eq(systemPromptSets.name, ms.name)).get();
 
-            // Pick some random IDs from the actual seeded prompts
-            const allRealIds = Array.from(promptIdMap.values());
-            const randomRealIds = allRealIds.sort(() => Math.random() - 0.5).slice(0, 2);
+        //     // Pick some random IDs from the actual seeded prompts
+        //     const allRealIds = Array.from(promptIdMap.values());
+        //     const randomRealIds = allRealIds.sort(() => Math.random() - 0.5).slice(0, 2);
 
-            if (!existing) {
-                console.log(`Inserting system prompt set: ${ms.name}`);
-                await db.insert(systemPromptSets).values({
-                    userId: adminUserId,
-                    name: ms.name,
-                    description: ms.description,
-                    systemPromptIds: JSON.stringify(randomRealIds),
-                });
-            } else {
-                console.log(`System prompt set already exists: ${ms.name}`);
-            }
-        }
+        //     if (!existing) {
+        //         console.log(`Inserting system prompt set: ${ms.name}`);
+        //         await db.insert(systemPromptSets).values({
+        //             userId: adminUserId,
+        //             name: ms.name,
+        //             description: ms.description,
+        //             systemPromptIds: JSON.stringify(randomRealIds),
+        //         });
+        //     } else {
+        //         console.log(`System prompt set already exists: ${ms.name}`);
+        //     }
+        // }
 
         // --- SEED CONTEXT GROUPS ---
         console.log("\n🌱 Seeding context groups from mock data...")
-        let cgCount = 0
+        // let cgCount = 0
 
-        for (const tc of mockContexts) {
-            const existing = await db
-                .select()
-                .from(contextGroups)
-                .where(eq(contextGroups.name, tc.name))
-                .get()
+        // for (const tc of mockContexts) {
+        //     const existing = await db
+        //         .select()
+        //         .from(contextGroups)
+        //         .where(eq(contextGroups.name, tc.name))
+        //         .get()
 
-            const values = {
-                userId: adminUserId,
-                name: tc.name,
-                description: `Category: ${tc.category} | Weight: ${tc.weight}`,
-                category: tc.category,
-                expectations: JSON.stringify(tc.expectations),
-                weight: tc.weight,
-                maxSentences: tc.maxSentences || null,
-                systemContext: tc.systemContext || null,
-                promptTemplate: tc.prompt,
-                updatedAt: new Date(),
-            }
+        //     const values = {
+        //         userId: adminUserId,
+        //         name: tc.name,
+        //         description: `Category: ${tc.category} | Weight: ${tc.weight}`,
+        //         category: tc.category,
+        //         expectations: JSON.stringify(tc.expectations),
+        //         weight: tc.weight,
+        //         maxSentences: tc.maxSentences || null,
+        //         systemContext: tc.systemContext || null,
+        //         promptTemplate: tc.prompt,
+        //         updatedAt: new Date(),
+        //     }
 
-            if (!existing) {
-                console.log(`Inserting context group: ${tc.name}`)
-                await db.insert(contextGroups).values(values)
-                cgCount++
-            } else {
-                console.log(`Updating context group: ${tc.name} (already exists)`)
-                await db.update(contextGroups)
-                    .set(values)
-                    .where(eq(contextGroups.id, existing.id))
-                    .run();
-            }
-        }
-        console.log(`✅ Context groups seeded! (${cgCount} new, ${mockContexts.length - cgCount} updated)`)
+        //     if (!existing) {
+        //         console.log(`Inserting context group: ${tc.name}`)
+        //         await db.insert(contextGroups).values(values)
+        //         cgCount++
+        //     } else {
+        //         console.log(`Updating context group: ${tc.name} (already exists)`)
+        //         await db.update(contextGroups)
+        //             .set(values)
+        //             .where(eq(contextGroups.id, existing.id))
+        //             .run();
+        //     }
+        // }
+        // console.log(`✅ Context groups seeded! (${cgCount} new, ${mockContexts.length - cgCount} updated)`)
 
-        console.log("\n✅ Seeding complete!")
-        console.log(`   Admin Email: ${ADMIN_EMAIL}`)
-        console.log(`   Admin Password: admin`)
+        // console.log("\n✅ Seeding complete!")
+        // console.log(`   Admin Email: ${ADMIN_EMAIL}`)
+        // console.log(`   Admin Password: admin`)
 
     } catch (error) {
         console.error("❌ Seeding failed:", error)

@@ -54,7 +54,7 @@ export async function getCachedRepositories() {
     if (userRecord?.configRepositoryId) {
         const configRepo = repositoriesResult.find(r => r.id === userRecord.configRepositoryId);
         if (configRepo) {
-            const fullPath = path.join(process.cwd(), "data", "repos", session.user.id, configRepo.fullName);
+            const fullPath = path.join(process.cwd(), "data", session.user.id, "repos", configRepo.fullName);
             if (!fs.existsSync(fullPath)) {
                 console.warn(`Config repository ${configRepo.fullName} not found at ${fullPath}. Clearing setting.`);
                 db.update(users)
@@ -291,7 +291,7 @@ export async function getConfigRepoData(feature?: string) {
         agents: []
     };
 
-    const fullPath = path.join(process.cwd(), "data", "repos", configRepo.userId, configRepo.fullName);
+    const fullPath = path.join(process.cwd(), "data", configRepo.userId, "repos", configRepo.fullName);
     return loadRepoData(fullPath, feature);
 }
 
@@ -305,6 +305,6 @@ export async function getRepoDataByFullName(repoFullName: string, feature?: stri
         agents: []
     };
 
-    const fullPath = path.join(process.cwd(), "data", "repos", repo.userId, repo.fullName);
+    const fullPath = path.join(process.cwd(), "data", repo.userId, "repos", repo.fullName);
     return loadRepoData(fullPath, feature);
 }

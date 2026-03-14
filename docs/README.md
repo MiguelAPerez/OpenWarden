@@ -1,6 +1,6 @@
-# Next.js Application Overview
+# CodeWarden
 
-This project is a premium Next.js application bootstrapped with the `nextjs_app_scaffold` skill.
+Is a platform designed to help you manage your codebases
 
 ## Tech Stack
 
@@ -11,11 +11,35 @@ This project is a premium Next.js application bootstrapped with the `nextjs_app_
 
 ## Architecture
 
+- `data/`: Contains the database and other data used by the app.
+  - `{userId}` - Each user has their own directory containing their data.
+    - `workspaces` - Each workspace has its own directory containing its data.
+    - `repos` - Each repo has its own directory containing its data.
+    - `agents` - Each agent has its own directory containing its data.
+  - `templates` - Holds starter templates for agents and system prompts.
+    - `agent` - Agent templates
+      - `PERSONALITY.md` - How the agent responses
+      - `WORKFLOW.md` - How the agent works (rules to follow)
+      - `IDENTITY.md` - Who the agent is
+  - `system`
+    - `DOCUMENTION.md` - How the agent responds to documentation requests
+    - `CODER.md` - How the agent responds to coding requests
+    - `REVIEWER.md` - How the agent responds to review requests
+  - `skills` - The skills the agent has
+    - `{name}`
+      - `SKILL.md` - Description of the skill
+      - `main.ts` - Code the skill can execute
+  - `sqlite.db`
 - `src/app/`: Contains the main application routes.
   - `page.tsx`: The landing page showcasing premium design elements.
   - `layout.tsx`: Root layout managing the HTML document, injecting the Outfit font, and providing dark mode context.
   - `globals.css`: Tailwind configuration and custom CSS variables for themes.
-  - `api/`: API routes for backend logic.
+  - `api/`: API routes for backend logic. (async)
+  - `actions/`: Actions for backend logic (syncronous)
+  - `components/`: Reusable components for the whole app
+  - `{page_name}/`: Top level pages
+    - `components/`: Reusable components for the page
+    - `page.tsx`: Page content
 - `docs/`: Comprehensive project documentation.
   - [authentication](authentication.md): Details the NextAuth permissions.
   - [orm](orm.md): Details the Drizzle database schema, seeder process, and DB clearing instructions.
@@ -24,11 +48,6 @@ This project is a premium Next.js application bootstrapped with the `nextjs_app_
   - [background-jobs](background-jobs.md): Instructions on how to add and manage scheduled cron tasks.
   - [workspaces](workspaces.md): A place to pair program and make quick modifications
 
-## Running Locally
+## Development
 
-```bash
-npm install
-npm run dev
-```
-
-The application will be available at [http://localhost:3000](http://localhost:3000).
+To start developemnt start with the [Development](development.md) section.

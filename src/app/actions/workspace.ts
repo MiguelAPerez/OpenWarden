@@ -10,10 +10,10 @@ import { eq, and } from "drizzle-orm";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/auth";
 import { cloneOrUpdateRepository } from "./files";
+import { ensureUserScaffold } from "@/lib/scaffold";
 
 const execAsync = promisify(exec);
-const REPOS_BASE_DIR = path.join(process.cwd(), "data", "repos");
-const WORKSPACES_BASE_DIR = path.join(process.cwd(), "data", "workspaces");
+const DATA_BASE_DIR = path.join(process.cwd(), "data");
 
 // Helper to get authenticated user
 async function getUserSession() {
@@ -46,13 +46,14 @@ export async function getEnabledRepositories() {
 // Initializes a workspace: Creates a local clone from data/repos to data/workspaces/<userId>/<repoFullName>
 export async function initWorkspace(repoId: string) {
     const user = await getUserSession();
+    await ensureUserScaffold(user.id);
     
     const repo = db.select().from(repositories).where(eq(repositories.id, repoId)).get();
     if (!repo) throw new Error("Repository not found");
     if (repo.userId !== user.id) throw new Error("Forbidden");
 
-    const sourceRepoDir = path.join(REPOS_BASE_DIR, user.id, repo.fullName);
-    const workspaceRepoDir = path.join(WORKSPACES_BASE_DIR, user.id, repo.fullName);
+    const sourceRepoDir = path.join(DATA_BASE_DIR, user.id, "repos", repo.fullName);
+    const workspaceRepoDir = path.join(DATA_BASE_DIR, user.id, "workspaces", repo.fullName);
 
     try {
         await fs.access(sourceRepoDir);
