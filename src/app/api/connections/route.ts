@@ -30,9 +30,10 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        const { type, name, config } = await req.json();
+        const { type, name, config, agentId } = await req.json();
         const [conn] = await db.insert(connections).values({
             userId: session.user.id,
+            agentId,
             type,
             name,
             config,
@@ -40,7 +41,7 @@ export async function POST(req: NextRequest) {
         }).returning();
 
         // Automatically start the bot
-        await ConnectionManager.getInstance().startConnection(conn.id, type, session.user.id, config);
+        await ConnectionManager.getInstance().startConnection(conn.id, type, session.user.id, config, agentId);
 
         return NextResponse.json(conn);
     } catch (error) {

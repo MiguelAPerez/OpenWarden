@@ -36,7 +36,7 @@ describe("ConnectionManager", () => {
 
     it("should start enabled connections", async () => {
         const mockConnections = [
-            { id: "conn1", type: "discord", userId: "user1", enabled: true, config: JSON.stringify({ token: "token1" }) },
+            { id: "conn1", type: "discord", userId: "user1", enabled: true, config: JSON.stringify({ token: "token1" }), agentId: "agent123" },
         ];
         (db.query.connections.findMany as jest.Mock).mockResolvedValue(mockConnections);
 
@@ -45,7 +45,7 @@ describe("ConnectionManager", () => {
         await manager.startAll();
 
         expect(db.query.connections.findMany).toHaveBeenCalled();
-        expect(DiscordBot).toHaveBeenCalledWith("token1", "user1", "conn1");
+        expect(DiscordBot).toHaveBeenCalledWith("token1", "user1", "conn1", "agent123");
     });
 
     it("should not start disabled connections", async () => {

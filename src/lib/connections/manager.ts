@@ -22,11 +22,11 @@ export class ConnectionManager {
 
         console.log(`[ConnectionManager] Found ${activeConnections.length} active connections.`);
         for (const conn of activeConnections) {
-            await this.startConnection(conn.id, conn.type, conn.userId, conn.config);
+            await this.startConnection(conn.id, conn.type, conn.userId, conn.config, conn.agentId);
         }
     }
 
-    async startConnection(id: string, type: string, userId: string, configJson: string) {
+    async startConnection(id: string, type: string, userId: string, configJson: string, agentId: string | null) {
         if (this.bots.has(id)) {
             console.log(`[ConnectionManager] Connection ${id} already running.`);
             return;
@@ -36,7 +36,7 @@ export class ConnectionManager {
             console.log(`[ConnectionManager] Starting connection ${id} (${type})...`);
             const config = JSON.parse(configJson);
             if (type === "discord" && config.token) {
-                const bot = new DiscordBot(config.token, userId, id);
+                const bot = new DiscordBot(config.token, userId, id, agentId);
                 await bot.start();
                 this.bots.set(id, bot);
                 console.log(`[ConnectionManager] Discord bot started successfully for connection ${id}.`);

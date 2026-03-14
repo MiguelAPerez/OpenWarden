@@ -11,11 +11,13 @@ export class DiscordBot {
     private token: string;
     private userId: string;
     private connectionId: string;
+    private agentId: string | null;
 
-    constructor(token: string, userId: string, connectionId: string) {
+    constructor(token: string, userId: string, connectionId: string, agentId: string | null = null) {
         this.token = token;
         this.userId = userId;
         this.connectionId = connectionId;
+        this.agentId = agentId;
         this.client = new Client({
             intents: [
                 GatewayIntentBits.Guilds,
@@ -111,12 +113,11 @@ export class DiscordBot {
             // Get default agent and repo if not set in chat
             let agentId: string | null = chat.agentId;
             if (!agentId) {
-                const user = await db.query.users.findFirst({
-                    where: (u, { eq }) => eq(u.id, this.userId),
-                });
-                agentId = user?.defaultAgentId || null;
+                // Use connection-specific agentId if available
+                agentId = this.agentId;
 
                 if (!agentId) {
+                    // Fallback to the first available agent for the user if none linked
                     const firstAgent = await db.query.agentConfigurations.findFirst({
                         where: (agent, { eq }) => eq(agent.userId, this.userId),
                     });

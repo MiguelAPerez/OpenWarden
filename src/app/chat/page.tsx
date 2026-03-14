@@ -7,7 +7,6 @@ import ChatSidebar, { ChatThread } from "@/components/chat/ChatSidebar";
 import ChatInterface, { Message } from "@/components/chat/ChatInterface";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { updateDefaultAgent } from "@/app/actions/config";
 import { clearChatMessages } from "@/app/actions/chat";
 
 export default function UnifiedChatPage() {
@@ -85,14 +84,9 @@ export default function UnifiedChatPage() {
             }
         } else {
             setMessages([]);
-            // Initialize from session if no active thread
-            if (session?.user?.defaultAgentId) {
-                setCurrentAgentId(session.user.defaultAgentId);
-            } else {
-                setCurrentAgentId(undefined);
-            }
+            setCurrentAgentId(undefined);
         }
-    }, [activeThreadId, threads, session?.user?.defaultAgentId]);
+    }, [activeThreadId, threads]);
 
     const handleSendMessage = async (content: string) => {
         if (!activeThreadId) {
@@ -184,11 +178,7 @@ export default function UnifiedChatPage() {
     const handleNewChat = () => {
         setActiveThreadId(undefined);
         setMessages([]);
-        if (session?.user?.defaultAgentId) {
-            setCurrentAgentId(session.user.defaultAgentId);
-        } else {
-            setCurrentAgentId(undefined);
-        }
+        setCurrentAgentId(undefined);
     };
 
     const handleSetDefaultAgent = async (agentId: string) => {
@@ -205,13 +195,6 @@ export default function UnifiedChatPage() {
         }
     };
 
-    const handleSetGlobalDefaultAgent = async (agentId: string) => {
-        try {
-            await updateDefaultAgent(agentId);
-        } catch (err) {
-            console.error("Failed to set global default agent:", err);
-        }
-    };
 
     const handleClearMessages = async () => {
         if (!activeThreadId) return;
@@ -247,7 +230,6 @@ export default function UnifiedChatPage() {
                     currentAgentId={currentAgentId}
                     onAgentSelect={setCurrentAgentId}
                     onSetDefaultAgent={handleSetDefaultAgent}
-                    onSetGlobalDefaultAgent={handleSetGlobalDefaultAgent}
                     onClear={handleClearMessages}
                 />
             </div>

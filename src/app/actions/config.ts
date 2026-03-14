@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/../db";
-import { agentConfigurations, backgroundJobs, users } from "@/../db/schema";
+import { agentConfigurations, backgroundJobs } from "@/../db/schema";
 import { eq, and, desc, notInArray } from "drizzle-orm";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/auth";
@@ -194,19 +194,5 @@ export async function triggerChatCleanup() {
     }).catch(console.error);
 
     revalidatePath("/admin/jobs");
-    return { success: true };
-}
-
-export async function updateDefaultAgent(agentId: string) {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) throw new Error("Unauthorized");
-
-    db.update(users)
-        .set({ defaultAgentId: agentId })
-        .where(eq(users.id, session.user.id))
-        .run();
-
-    revalidatePath("/chat");
-    revalidatePath("/settings");
     return { success: true };
 }

@@ -1,6 +1,7 @@
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
 import { repositories } from "./git"
 import { users } from "./core"
+import { agentConfigurations } from "./ai"
 
 
 export const codeEmbeddings = sqliteTable("code_embedding", {
@@ -36,6 +37,7 @@ export const connections = sqliteTable("connection", {
     userId: text("userId")
         .notNull()
         .references(() => users.id, { onDelete: "cascade" }),
+    agentId: text("agentId").references(() => agentConfigurations.id, { onDelete: "set null" }),
     type: text("type", { enum: ["discord"] }).notNull(),
     name: text("name").notNull(),
     config: text("config").notNull(), // JSON string for tokens/config

@@ -10,7 +10,9 @@ export default function ConnectionsSettingsPage() {
     const router = useRouter();
     const sessionContext = useSession();
     const session = sessionContext?.data;
-    const [connections, setConnections] = useState<{ id: string; name: string; enabled: boolean; type: string; config: string }[]>([]);
+    const [connections, setConnections] = useState<{ id: string; name: string; enabled: boolean; type: string; config: string; agentId: string | null }[]>([]);
+    const [agents, setAgents] = useState<{ id: string; name: string }[]>([]);
+    const [selectedAgentId, setSelectedAgentId] = useState<string>("");
     const [addingType, setAddingType] = useState<string | null>(null);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [discordToken, setDiscordToken] = useState("");
@@ -30,6 +32,16 @@ export default function ConnectionsSettingsPage() {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
+    const fetchAgents = async () => {
+        try {
+            const res = await fetch("/api/agents");
+            const data = await res.json();
+            setAgents(data);
+        } catch (err) {
+            console.error("Failed to fetch agents:", err);
+        }
+    };
+
     const fetchConnections = async () => {
         setIsLoading(true);
         try {
@@ -48,6 +60,7 @@ export default function ConnectionsSettingsPage() {
             router.push("/login");
         } else if (session) {
             fetchConnections();
+            fetchAgents();
         }
     }, [session, sessionContext?.status, router]);
 
@@ -56,14 +69,16 @@ export default function ConnectionsSettingsPage() {
         setEditingId(null);
         setDiscordToken("");
         setBotName("");
+        setSelectedAgentId("");
         setIsDropdownOpen(false);
     };
 
-    const handleEditClick = (conn: { id: string; name: string; enabled: boolean; type: string; config: string }) => {
+    const handleEditClick = (conn: { id: string; name: string; enabled: boolean; type: string; config: string; agentId: string | null }) => {
 
         setAddingType(conn.type);
         setEditingId(conn.id);
         setBotName(conn.name);
+        setSelectedAgentId(conn.agentId || "");
         try {
             const config = JSON.parse(conn.config);
             setDiscordToken(config.token || "");
@@ -78,7 +93,8 @@ export default function ConnectionsSettingsPage() {
             const body = {
                 type: "discord",
                 name: botName,
-                config: JSON.stringify({ token: discordToken })
+                config: JSON.stringify({ token: discordToken }),
+                agentId: selectedAgentId || null
             };
 
             if (editingId) {
@@ -205,6 +221,19 @@ export default function ConnectionsSettingsPage() {
                             />
                         </div>
                         <div>
+                            <label className="block text-sm font-medium mb-1">Assigned Agent</label>
+                            <select
+                                value={selectedAgentId}
+                                onChange={(e) => setSelectedAgentId(e.target.value)}
+                                className="w-full bg-foreground/5 border border-border/50 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none"
+                            >
+                                <option value="">No Agent (Will use first available)</option>
+                                {agents.map(agent => (
+                                    <option key={agent.id} value={agent.id}>{agent.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
                             <label className="block text-sm font-medium mb-1">Bot Token</label>
                             <input
                                 type="password"
@@ -252,9 +281,18 @@ export default function ConnectionsSettingsPage() {
                                 </div>
                                 <div>
                                     <h3 className="font-bold text-lg">{conn.name}</h3>
-                                    <div className="flex items-center gap-2">
-                                        <span className={`w-2 h-2 rounded-full ${conn.enabled ? "bg-green-500" : "bg-foreground/20"}`} />
-                                        <span className="text-xs text-foreground/60">{conn.enabled ? "Active" : "Disabled"}</span>
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-2">
+                                            <span className={`w-2 h-2 rounded-full ${conn.enabled ? "bg-green-500" : "bg-foreground/20"}`} />
+                                            <span className="text-xs text-foreground/60">{conn.enabled ? "Active" : "Disabled"}</span>
+                                        </div>
+                                        <div className="w-1 h-1 rounded-full bg-foreground/20" />
+                                        <div className="text-xs text-foreground/60 flex items-center gap-1">
+                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                            </svg>
+                                            {conn.agentId ? agents.find(a => a.id === conn.agentId)?.name || "Unknown Agent" : "No Agent Assigned"}
+                                        </div>
                                     </div>
                                 </div>
                             </div>

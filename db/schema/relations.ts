@@ -3,6 +3,18 @@ import { users, accounts, sessions, userPermissions } from "./core"
 import { repositories, githubConfigurations } from "./git"
 import { agentConfigurations } from "./ai"
 import { chats, messages } from "./chat"
+import { connections } from "./data"
+
+export const connectionsRelations = relations(connections, ({ one }) => ({
+    user: one(users, {
+        fields: [connections.userId],
+        references: [users.id],
+    }),
+    agent: one(agentConfigurations, {
+        fields: [connections.agentId],
+        references: [agentConfigurations.id],
+    }),
+}))
 
 export const chatsRelations = relations(chats, ({ one, many }) => ({
     user: one(users, {

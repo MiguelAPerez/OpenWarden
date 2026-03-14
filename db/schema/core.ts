@@ -1,6 +1,5 @@
 import { integer, sqliteTable, text, primaryKey } from "drizzle-orm/sqlite-core"
 import type { AdapterAccount } from "next-auth/adapters"
-import { agentConfigurations } from "./ai"
 import { repositories } from "./git"
 
 export const users = sqliteTable("user", {
@@ -15,7 +14,6 @@ export const users = sqliteTable("user", {
     password: text("password"),
     mainBranchProtected: integer("mainBranchProtected", { mode: "boolean" }).notNull().default(true),
     configRepositoryId: text("configRepositoryId").references(() => repositories.id, { onDelete: "set null" }),
-    defaultAgentId: text("defaultAgentId").references(() => agentConfigurations.id, { onDelete: "set null" }),
 })
 
 export const accounts = sqliteTable(
