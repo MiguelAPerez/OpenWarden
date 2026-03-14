@@ -1,6 +1,12 @@
 import { ContextData } from "./types";
 import { getPromptFromFile } from "@/app/actions/prompts";
 
+
+/**
+ * Documention Component
+ * 
+ * This class is used to build the system prompt for documention file. Used by our knowledge base agent.
+ */
 export class PromptBuilder {
     static async buildSystemPrompt(contextData: ContextData, currentFilePath: string | null, currentFileContent: string) {
         const { repo, agentPersonalityPrompt, enabledSkills, enabledTools } = contextData;
@@ -23,14 +29,16 @@ export class PromptBuilder {
             prompt += "\n\nAvailable Tools:\n" + enabledTools.map((t) => `- ${t.name}: ${t.description}\nSchema: ${t.schema}`).join("\n\n");
         }
 
-        prompt += `\n\nContext:\nRepository: ${repo.fullName}\n`;
+        if (repo) {
+            prompt += `\n\nContext:\nRepository: ${repo.fullName}\n`;
 
-        const docsMetadata = repo.docsMetadata ? JSON.parse(repo.docsMetadata) : {};
-        const fileList = (docsMetadata.fileList || []) as { path: string; title?: string; description?: string }[];
+            const docsMetadata = repo.docsMetadata ? JSON.parse(repo.docsMetadata) : {};
+            const fileList = (docsMetadata.fileList || []) as { path: string; title?: string; description?: string }[];
 
-        if (fileList.length > 0) {
-            prompt += "\nAvailable Documentation Files:\n";
-            prompt += fileList.map((f) => `- ${f.path}${f.title ? ` (${f.title})` : ""}${f.description ? `: ${f.description}` : ""}`).join("\n");
+            if (fileList.length > 0) {
+                prompt += "\nAvailable Documentation Files:\n";
+                prompt += fileList.map((f) => `- ${f.path}${f.title ? ` (${f.title})` : ""}${f.description ? `: ${f.description}` : ""}`).join("\n");
+            }
         }
 
         if (currentFilePath) {

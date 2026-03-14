@@ -8,6 +8,7 @@ export interface ChatThread {
     title: string;
     type: "web" | "discord";
     updatedAt: Date;
+    agentId?: string;
     lastMessage?: string;
 }
 

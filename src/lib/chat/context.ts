@@ -8,15 +8,20 @@ import { ContextData } from "./types";
 export class ChatContext {
     constructor(
         public readonly userId: string,
-        public readonly repoId: string,
+        public readonly repoId: string | null = null,
         public readonly agentId?: string,
         public filePath: string | null = null,
         public extraFilePaths: string[] = []
     ) { }
 
     async load(): Promise<ContextData> {
-        const repo = db.select().from(repositories).where(eq(repositories.id, this.repoId)).get();
-        if (!repo) throw new Error("Repository not found");
+        let repo = null;
+        if (this.repoId && this.repoId !== "default") {
+            repo = db.select().from(repositories).where(eq(repositories.id, this.repoId)).get();
+            if (!repo) {
+                console.warn(`Repository ${this.repoId} not found. Proceeding as global chat.`);
+            }
+        }
 
         let agentConfig;
         if (this.agentId) {
@@ -71,19 +76,21 @@ export class ChatContext {
         ]));
 
         const fileContents: Record<string, string> = {};
-        for (const path of allFilePaths) {
-            try {
-                let content = await getRepoFileContentInternal(this.repoId, path, this.userId);
-                // Remove frontmatter if present
-                content = content.replace(/^---\s*[\s\S]*?---\s*/, '');
-                fileContents[path] = content;
-            } catch (e) {
-                console.error(`Error reading context file ${path}:`, e);
+        if (this.repoId && this.repoId !== "default") {
+            for (const path of allFilePaths) {
+                try {
+                    let content = await getRepoFileContentInternal(this.repoId, path, this.userId);
+                    // Remove frontmatter if present
+                    content = content.replace(/^---\s*[\s\S]*?---\s*/, '');
+                    fileContents[path] = content;
+                } catch (e) {
+                    console.error(`Error reading context file ${path}:`, e);
+                }
             }
         }
 
         return {
-            repo,
+            repo: repo || undefined,
             agentConfig,
             agentPersonalityPrompt,
             enabledSkills,

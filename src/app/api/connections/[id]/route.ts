@@ -17,10 +17,15 @@ export async function PATCH(
 
     try {
         const { id } = await params;
-        const { enabled } = await req.json();
+        const { enabled, name, config } = await req.json();
         
+        const updateData: any = { updatedAt: new Date() };
+        if (enabled !== undefined) updateData.enabled = enabled;
+        if (name !== undefined) updateData.name = name;
+        if (config !== undefined) updateData.config = config;
+
         const [conn] = await db.update(connections)
-            .set({ enabled, updatedAt: new Date() })
+            .set(updateData)
             .where(and(
                 eq(connections.id, id),
                 eq(connections.userId, session.user.id)
@@ -28,7 +33,9 @@ export async function PATCH(
             .returning();
 
         if (conn) {
-            if (enabled) {
+            // Restart connection if it's enabled and something changed
+            if (conn.enabled) {
+                await ConnectionManager.getInstance().stopConnection(conn.id);
                 await ConnectionManager.getInstance().startConnection(conn.id, conn.type, conn.userId, conn.config);
             } else {
                 await ConnectionManager.getInstance().stopConnection(conn.id);
@@ -38,6 +45,39 @@ export async function PATCH(
         return NextResponse.json(conn);
     } catch (error) {
         console.error("PATCH /api/connections/[id] error:", error);
+        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    }
+}
+
+export async function DELETE(
+    req: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    try {
+        const { id } = await params;
+        
+        // Stop the connection first
+        await ConnectionManager.getInstance().stopConnection(id);
+
+        const [deleted] = await db.delete(connections)
+            .where(and(
+                eq(connections.id, id),
+                eq(connections.userId, session.user.id)
+            ))
+            .returning();
+
+        if (!deleted) {
+            return NextResponse.json({ error: "Connection not found" }, { status: 404 });
+        }
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error("DELETE /api/connections/[id] error:", error);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }

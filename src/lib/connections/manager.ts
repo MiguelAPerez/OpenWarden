@@ -73,8 +73,8 @@ export class DiscordBot {
                 repoId = defaultRepo?.id || null;
             }
 
-            if (!agentId || !repoId) {
-                await message.reply("Internal Error: No agent or repository configured for this connection.");
+            if (!agentId) {
+                await message.reply("Internal Error: No agent configured for this user. Please create an agent in the dashboard.");
                 return;
             }
 
@@ -88,7 +88,7 @@ export class DiscordBot {
             }
 
             const response = await chatWithAgentInternal(
-                repoId,
+                repoId as string, // Cast for type safety, context handles null
                 null, // No specific file path from Discord yet
                 message.content,
                 agentId,

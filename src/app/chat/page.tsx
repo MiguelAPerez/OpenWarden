@@ -16,17 +16,31 @@ export default function UnifiedChatPage() {
     const [activeThreadId, setActiveThreadId] = useState<string | undefined>();
     const [messages, setMessages] = useState<Message[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [agents, setAgents] = useState<{ id: string; name: string }[]>([]);
+    const [currentAgentId, setCurrentAgentId] = useState<string | undefined>();
+
+    const fetchAgents = async () => {
+        try {
+            const res = await fetch("/api/agents");
+            if (!res.ok) throw new Error("Failed to fetch");
+            const data = await res.json();
+            setAgents(data.map((a: { id: string; name: string }) => ({ id: a.id, name: a.name })));
+        } catch (err) {
+            console.error("Failed to fetch agents:", err);
+        }
+    };
 
     const fetchThreads = async () => {
         try {
             const res = await fetch("/api/chats");
             const data = await res.json();
-            setThreads(data.map((t: { id: string; title: string; type: "web" | "discord"; updatedAt: string }) => ({
+            setThreads(data.map((t: { id: string; title: string; type: "web" | "discord"; agentId?: string; updatedAt: string }) => ({
                 id: t.id,
                 title: t.title || "Untitled Chat",
                 type: t.type,
+                agentId: t.agentId,
                 updatedAt: new Date(t.updatedAt),
-                lastMessage: "Click to view history" // Optional: fetch last message
+                lastMessage: "Click to view history"
             })));
         } catch (err) {
             console.error("Failed to fetch threads:", err);
@@ -56,16 +70,22 @@ export default function UnifiedChatPage() {
             router.push("/login");
         } else if (session) {
             fetchThreads();
+            fetchAgents();
         }
     }, [session, sessionContext?.status, router]);
 
     useEffect(() => {
         if (activeThreadId) {
             fetchMessages(activeThreadId);
+            const thread = threads.find(t => t.id === activeThreadId);
+            if (thread) {
+                setCurrentAgentId(thread.agentId);
+            }
         } else {
             setMessages([]);
+            setCurrentAgentId(undefined);
         }
-    }, [activeThreadId]);
+    }, [activeThreadId, threads]);
 
     const handleSendMessage = async (content: string) => {
         if (!activeThreadId) {
@@ -112,8 +132,8 @@ export default function UnifiedChatPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ 
                     prompt: content,
-                    repoId: "default", // Should be managed via thread state
-                    agentId: "default", // Should be managed via thread state
+                    repoId: null, 
+                    agentId: currentAgentId || "default", 
                     history: messages.map(m => ({ role: m.role, content: m.content }))
                 })
             });
@@ -153,6 +173,21 @@ export default function UnifiedChatPage() {
     const handleNewChat = () => {
         setActiveThreadId(undefined);
         setMessages([]);
+        setCurrentAgentId(undefined);
+    };
+
+    const handleSetDefaultAgent = async (agentId: string) => {
+        if (!activeThreadId) return;
+        try {
+            await fetch(`/api/chats/${activeThreadId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ agentId })
+            });
+            fetchThreads(); // Refresh to update list state
+        } catch (err) {
+            console.error("Failed to set default agent:", err);
+        }
     };
 
     const activeThread = threads.find(t => t.id === activeThreadId);
@@ -175,6 +210,10 @@ export default function UnifiedChatPage() {
                     onSendMessage={handleSendMessage}
                     title={activeThread?.title}
                     type={activeThread?.type}
+                    agents={agents}
+                    currentAgentId={currentAgentId}
+                    onAgentSelect={setCurrentAgentId}
+                    onSetDefaultAgent={handleSetDefaultAgent}
                 />
             </div>
         </div>

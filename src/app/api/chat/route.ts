@@ -7,6 +7,11 @@ import { extractMentionedPaths } from "@/lib/chat/utils";
 
 import { getPromptFromFile } from "@/app/actions/prompts";
 
+/**
+ * General Chat API Route
+ * 
+ * This route is used to handle general chat requests.
+ */
 export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -14,9 +19,10 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        const { repoId, filePath, prompt, agentId, history } = await req.json();
+        const { repoId, filePath, prompt, sysPrompt, agentId, history } = await req.json();
+        let systemPrompt = sysPrompt;
 
-        if (!repoId || !prompt || !agentId) {
+        if (!prompt || !agentId) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
@@ -27,8 +33,6 @@ export async function POST(req: NextRequest) {
 
         const chatClient = ChatClientFactory.getClient(contextData);
 
-
-        let systemPrompt = await getPromptFromFile("CODER");
         if (contextData.agentPersonalityPrompt) {
             systemPrompt = `${contextData.agentPersonalityPrompt}\n\n${systemPrompt}`;
         }
