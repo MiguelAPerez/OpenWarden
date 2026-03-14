@@ -34,7 +34,7 @@ const jestConfig = await createJestConfig(config)()
 // Add transformIgnorePatterns after next/jest has had its way with it
 // This is a known workaround for next/jest ignoring node_modules transformation
 jestConfig.transformIgnorePatterns = [
-  '/node_modules/(?!(jose|openid-client|preact|@auth|next-auth|next|drizzle-orm|react-markdown|octokit|@octokit|unified|remark|rehype|micromark|vfile|unist|mdast|hast|estree|zwitch|fault|handle|is-|parse-entities|stringify-entities|web-namespaces|ccount|markdown-table|decode-named-character-reference|character-entities|escape-string-regexp|universal-user-agent|before-after-hook)/)',
+  '/node_modules/(?!(jose|openid-client|preact|@auth|next-auth|next|drizzle-orm|react-markdown|octokit|@octokit|unified|remark|rehype|micromark|vfile|unist|mdast|hast|estree|zwitch|fault|handle|is-|parse-entities|stringify-entities|web-namespaces|ccount|markdown-table|decode-named-character-reference|character-entities|escape-string-regexp|universal-user-agent|before-after-hook|react-syntax-highlighter)/)',
 ]
 
 export default jestConfig
