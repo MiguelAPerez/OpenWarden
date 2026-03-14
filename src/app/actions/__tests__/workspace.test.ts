@@ -69,7 +69,7 @@ const mockExecAsync = (jest.requireMock("util") as { _mockExecAsync: jest.Mock }
 
 jest.mock("fs/promises", () => {
     const access = jest.fn();
-    const readdir = jest.fn();
+    const readdir = jest.fn().mockResolvedValue([]);
     const readFile = jest.fn();
     const writeFile = jest.fn();
     const mkdir = jest.fn();

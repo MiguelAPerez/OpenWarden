@@ -7,6 +7,7 @@ import * as gitActions from "@/app/actions/git";
 import * as configActions from "@/app/actions/config";
 import * as settingsActions from "@/app/actions/settings";
 import * as dockerActions from "@/app/actions/docker-sandboxes";
+import * as workspaceFilesActions from "@/app/actions/workspace-files";
 
 jest.mock("octokit", () => ({
     Octokit: jest.fn().mockImplementation(() => ({
@@ -21,6 +22,7 @@ jest.mock("@/app/actions/git");
 jest.mock("@/app/actions/config");
 jest.mock("@/app/actions/settings");
 jest.mock("@/app/actions/docker-sandboxes");
+jest.mock("@/app/actions/workspace-files");
 
 describe("useWorkspaceInit", () => {
     const dispatch = jest.fn();
@@ -45,6 +47,8 @@ describe("useWorkspaceInit", () => {
         (gitActions.getCurrentBranch as jest.Mock).mockResolvedValue({ success: true, branch: "main" });
         (settingsActions.getBranchProtection as jest.Mock).mockResolvedValue(true);
         (dockerActions.listSandboxes as jest.Mock).mockResolvedValue([]);
+        (workspaceFilesActions.getRepoFileTree as jest.Mock).mockResolvedValue([]);
+        (workspaceFilesActions.getWorkspaceChangedFiles as jest.Mock).mockResolvedValue([]);
     });
 
     it("loads agents on mount", async () => {
