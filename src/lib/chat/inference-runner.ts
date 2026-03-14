@@ -44,7 +44,7 @@ export class InferenceRunner {
             }
 
             if (parsed) {
-                if (parsed.redirect && step < 2) {
+                if (parsed.redirect && step < 1) { // Only allow 1 redirect (2 steps total)
                     const newPath = parsed.redirect;
                     if (newPath !== currentFilePath) {
                         console.log(`[Chat Inference] Navigating to: ${newPath}`);
@@ -64,13 +64,14 @@ export class InferenceRunner {
                             continue;
                         } catch (e) {
                             console.error(`Failed to navigate to ${newPath}:`, e);
+                            // Fall through to return current message if navigation fails
                         }
                     }
                 }
 
                 return {
                     message: parsed.message || content,
-                    redirect: parsed.redirect || currentRedirect
+                    redirect: currentRedirect // Use currentRedirect which is only updated on SUCCESSFUL navigation
                 };
             }
 
@@ -80,6 +81,10 @@ export class InferenceRunner {
             };
         }
 
-        throw new Error("Maximum inference steps reached.");
+        // Should ideally not reach here if loop returns inside, but as a safety:
+        return {
+            message: "Maximum inference steps reached.",
+            redirect: currentRedirect
+        };
     }
 }
