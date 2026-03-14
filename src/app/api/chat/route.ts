@@ -44,16 +44,16 @@ export async function POST(req: NextRequest) {
             ...(history || []),
         ];
 
-        if (Object.keys(contextData.fileContents).length > 0) {
-            let contextMessage = "Here is the content of the files currently relevant to the conversation:\n\n";
-            for (const [path, content] of Object.entries(contextData.fileContents)) {
-                contextMessage += `FILE: ${path}\n\`\`\`\n${content}\n\`\`\`\n\n`;
-            }
-            contextMessage += `User Request: ${prompt}`;
-            messages.push({ role: "user", content: contextMessage });
-        } else {
-            messages.push({ role: "user", content: prompt });
-        }
+        // if (Object.keys(contextData.fileContents).length > 0) {
+        //     let contextMessage = "Here is the content of the files currently relevant to the conversation:\n\n";
+        //     for (const [path, content] of Object.entries(contextData.fileContents)) {
+        //         contextMessage += `FILE: ${path}\n\`\`\`\n${content}\n\`\`\`\n\n`;
+        //     }
+        //     contextMessage += `User Request: ${prompt}`;
+        //     messages.push({ role: "user", content: contextMessage });
+        // } else {
+        //     messages.push({ role: "user", content: prompt });
+        // }
 
         const encoder = new TextEncoder();
         const stream = new ReadableStream({

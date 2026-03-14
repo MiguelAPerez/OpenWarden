@@ -18,8 +18,8 @@ export async function PATCH(
     try {
         const { id } = await params;
         const { enabled, name, config } = await req.json();
-        
-        const updateData: any = { updatedAt: new Date() };
+
+        const updateData: { updatedAt: Date, enabled?: boolean, name?: string, config?: string } = { updatedAt: new Date() };
         if (enabled !== undefined) updateData.enabled = enabled;
         if (name !== undefined) updateData.name = name;
         if (config !== undefined) updateData.config = config;
@@ -60,7 +60,7 @@ export async function DELETE(
 
     try {
         const { id } = await params;
-        
+
         // Stop the connection first
         await ConnectionManager.getInstance().stopConnection(id);
 

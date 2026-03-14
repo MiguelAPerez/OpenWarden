@@ -1,6 +1,6 @@
 import { Client, GatewayIntentBits, Message, TextChannel } from "discord.js";
 import { ChatService } from "@/lib/chat/service";
-import { chatWithAgentInternal, getPromptFromFile } from "@/app/actions/chat";
+import { chatWithAgent, chatWithAgentInternal } from "@/app/actions/chat";
 import { db } from "@/../db";
 
 export class DiscordBot {
@@ -41,19 +41,15 @@ export class DiscordBot {
         if (message.author.bot) return;
 
         try {
+            await message;
+            // If we get an empty message htrow
+            if (!message.content) throw new Error("Empty message");
             // Get or create chat for this Discord channel
             const chat = await ChatService.getOrCreateChat({
                 userId: this.userId,
                 type: "discord",
                 externalId: message.channelId,
                 title: message.channel instanceof TextChannel ? `#${message.channel.name}` : `DM with ${message.author.username}`,
-            });
-
-            // Save user message
-            await ChatService.saveMessage({
-                chatId: chat.id,
-                role: "user",
-                content: message.content,
             });
 
             // Get default agent and repo if not set in chat
@@ -73,14 +69,6 @@ export class DiscordBot {
                 }
             }
 
-            let repoId: string | null = chat.repoId;
-            if (!repoId) {
-                const defaultRepo = await db.query.repositories.findFirst({
-                    where: (repo, { eq }) => eq(repo.userId, this.userId),
-                });
-                repoId = defaultRepo?.id || null;
-            }
-
             if (!agentId) {
                 await message.reply("Internal Error: No agent configured for this user. Please create an agent in the dashboard.");
                 return;
@@ -95,16 +83,15 @@ export class DiscordBot {
                 await message.channel.sendTyping();
             }
 
-            const discordPrompt = await getPromptFromFile("DISCORD");
-
             const response = await chatWithAgentInternal(
-                repoId as string, // Cast for type safety, context handles null
-                null, // No specific file path from Discord yet
-                message.content,
                 agentId,
+                message.content,
                 this.userId,
                 chatMessages,
-                discordPrompt
+                null,
+                null,
+                null,
+                message.channelId,
             );
 
             // Save assistant message

@@ -5,7 +5,7 @@ export interface ChatMessage {
 
 export interface ChatResponse {
     message: string;
-    redirect: string | null;
+    redirect?: string | null;
     suggestion?: PendingSuggestion | null;
     plan?: TechnicalPlan | null;
 }

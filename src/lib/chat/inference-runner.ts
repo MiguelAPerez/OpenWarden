@@ -2,6 +2,10 @@ import { ChatMessage, ChatResponse, ContextData, ChatClient } from "./types";
 import { PromptBuilder } from "./prompt-builder";
 import { getRepoFileContentInternal } from "@/lib/repo-utils";
 
+/**
+ * This class is used to run the inference with the agent.
+ * It will recursively call the agent until it gets a response with no conflicts
+ */
 export class InferenceRunner {
     constructor(
         private readonly userId: string,

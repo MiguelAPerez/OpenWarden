@@ -23,6 +23,7 @@ interface ChatInterfaceProps {
     currentAgentId?: string;
     onAgentSelect?: (agentId: string) => void;
     onSetDefaultAgent?: (agentId: string) => void;
+    onSetGlobalDefaultAgent?: (agentId: string) => void;
 }
 
 export default function ChatInterface({ 
@@ -34,7 +35,8 @@ export default function ChatInterface({
     agents = [],
     currentAgentId,
     onAgentSelect,
-    onSetDefaultAgent
+    onSetDefaultAgent,
+    onSetGlobalDefaultAgent
 }: ChatInterfaceProps) {
     const [isAgentMenuOpen, setIsAgentMenuOpen] = useState(false);
     const agentMenuRef = useRef<HTMLDivElement>(null);
@@ -129,16 +131,29 @@ export default function ChatInterface({
                                         ))}
                                     </div>
                                     {currentAgentId && (
-                                        <div className="p-1.5 border-t border-border bg-foreground/[0.01]">
-                                            <button
-                                                onClick={() => {
-                                                    onSetDefaultAgent?.(currentAgentId);
-                                                    setIsAgentMenuOpen(false);
-                                                }}
-                                                className="w-full text-center px-4 py-2 bg-primary text-white rounded-lg text-xs font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform"
-                                            >
-                                                Set as Default for Chat
-                                            </button>
+                                        <div className="p-1.5 border-t border-border bg-foreground/[0.01] space-y-1">
+                                            {onSetDefaultAgent && (
+                                                <button
+                                                    onClick={() => {
+                                                        onSetDefaultAgent?.(currentAgentId);
+                                                        setIsAgentMenuOpen(false);
+                                                    }}
+                                                    className="w-full text-center px-4 py-2 bg-primary/10 text-primary rounded-lg text-xs font-bold hover:bg-primary/20 transition-all"
+                                                >
+                                                    Set for Chat
+                                                </button>
+                                            )}
+                                            {onSetGlobalDefaultAgent && (
+                                                <button
+                                                    onClick={() => {
+                                                        onSetGlobalDefaultAgent?.(currentAgentId);
+                                                        setIsAgentMenuOpen(false);
+                                                    }}
+                                                    className="w-full text-center px-4 py-2 bg-primary text-white rounded-lg text-xs font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform"
+                                                >
+                                                    Set as Global Default
+                                                </button>
+                                            )}
                                         </div>
                                     )}
                                 </div>

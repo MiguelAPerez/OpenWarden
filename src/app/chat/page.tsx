@@ -7,6 +7,7 @@ import ChatSidebar, { ChatThread } from "@/components/chat/ChatSidebar";
 import ChatInterface, { Message } from "@/components/chat/ChatInterface";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { updateDefaultAgent } from "@/app/actions/config";
 
 export default function UnifiedChatPage() {
     const router = useRouter();
@@ -83,9 +84,14 @@ export default function UnifiedChatPage() {
             }
         } else {
             setMessages([]);
-            setCurrentAgentId(undefined);
+            // Initialize from session if no active thread
+            if (session?.user?.defaultAgentId) {
+                setCurrentAgentId(session.user.defaultAgentId);
+            } else {
+                setCurrentAgentId(undefined);
+            }
         }
-    }, [activeThreadId, threads]);
+    }, [activeThreadId, threads, session?.user?.defaultAgentId]);
 
     const handleSendMessage = async (content: string) => {
         if (!activeThreadId) {
@@ -176,7 +182,11 @@ export default function UnifiedChatPage() {
     const handleNewChat = () => {
         setActiveThreadId(undefined);
         setMessages([]);
-        setCurrentAgentId(undefined);
+        if (session?.user?.defaultAgentId) {
+            setCurrentAgentId(session.user.defaultAgentId);
+        } else {
+            setCurrentAgentId(undefined);
+        }
     };
 
     const handleSetDefaultAgent = async (agentId: string) => {
@@ -190,6 +200,17 @@ export default function UnifiedChatPage() {
             fetchThreads(); // Refresh to update list state
         } catch (err) {
             console.error("Failed to set default agent:", err);
+        }
+    };
+
+    const handleSetGlobalDefaultAgent = async (agentId: string) => {
+        try {
+            await updateDefaultAgent(agentId);
+            // The session won't automatically update on the client, 
+            // but the state will stay as selected.
+            // In a real app, you might want to force a session refresh.
+        } catch (err) {
+            console.error("Failed to set global default agent:", err);
         }
     };
 
@@ -217,6 +238,7 @@ export default function UnifiedChatPage() {
                     currentAgentId={currentAgentId}
                     onAgentSelect={setCurrentAgentId}
                     onSetDefaultAgent={handleSetDefaultAgent}
+                    onSetGlobalDefaultAgent={handleSetGlobalDefaultAgent}
                 />
             </div>
         </div>

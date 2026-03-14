@@ -59,7 +59,8 @@ export default function ConnectionsSettingsPage() {
         setIsDropdownOpen(false);
     };
 
-    const handleEditClick = (conn: any) => {
+    const handleEditClick = (conn: { id: string; name: string; enabled: boolean; type: string; config: string }) => {
+
         setAddingType(conn.type);
         setEditingId(conn.id);
         setBotName(conn.name);
@@ -133,12 +134,12 @@ export default function ConnectionsSettingsPage() {
         <div className="max-w-4xl mx-auto p-8">
             <div className="mb-8 flex justify-between items-center">
                 <div>
-                  <h1 className="text-3xl font-bold mb-2">External Connections</h1>
-                  <p className="text-foreground/60">Manage your agent connections to apps like Discord and Slack.</p>
+                    <h1 className="text-3xl font-bold mb-2">External Connections</h1>
+                    <p className="text-foreground/60">Manage your agent connections to apps like Discord and Slack.</p>
                 </div>
                 {!addingType && (
                     <div className="relative" ref={dropdownRef}>
-                        <button 
+                        <button
                             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                             className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2 font-semibold shadow-lg shadow-primary/20"
                         >
@@ -153,24 +154,24 @@ export default function ConnectionsSettingsPage() {
 
                         {isDropdownOpen && (
                             <div className="absolute right-0 mt-2 w-56 bg-background border border-border rounded-xl shadow-2xl z-20 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                                <button 
+                                <button
                                     onClick={() => handleAddClick("discord")}
                                     className="w-full text-left px-4 py-3 hover:bg-foreground/5 transition-colors flex items-center gap-3"
                                 >
                                     <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-500">
                                         <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                                            <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/>
+                                            <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z" />
                                         </svg>
                                     </div>
                                     <span className="font-medium text-sm">Discord Bot</span>
                                 </button>
-                                <button 
+                                <button
                                     disabled
                                     className="w-full text-left px-4 py-3 opacity-50 cursor-not-allowed flex items-center gap-3"
                                 >
                                     <div className="p-1.5 rounded-lg bg-teal-500/10 text-teal-500">
                                         <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                                            <path d="M6 15a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm4 4a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0-8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm4 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm4-4a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/>
+                                            <path d="M6 15a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm4 4a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0-8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm4 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm4-4a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" />
                                         </svg>
                                     </div>
                                     <span className="font-medium text-sm italic">Slack (Coming Soon)</span>
@@ -186,7 +187,7 @@ export default function ConnectionsSettingsPage() {
                     <h2 className="text-xl font-bold mb-4 flex items-center gap-3">
                         <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-500">
                             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/>
+                                <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z" />
                             </svg>
                         </div>
                         {editingId ? "Edit Connection" : "New Discord Connection"}
@@ -194,8 +195,8 @@ export default function ConnectionsSettingsPage() {
                     <form onSubmit={handleSaveConnection} className="space-y-4">
                         <div>
                             <label className="block text-sm font-medium mb-1">Friendly Name</label>
-                            <input 
-                                type="text" 
+                            <input
+                                type="text"
                                 value={botName}
                                 onChange={(e) => setBotName(e.target.value)}
                                 placeholder="My Personal Discord Bot"
@@ -205,8 +206,8 @@ export default function ConnectionsSettingsPage() {
                         </div>
                         <div>
                             <label className="block text-sm font-medium mb-1">Bot Token</label>
-                            <input 
-                                type="password" 
+                            <input
+                                type="password"
                                 value={discordToken}
                                 onChange={(e) => setDiscordToken(e.target.value)}
                                 placeholder="MTAx..."
@@ -215,14 +216,14 @@ export default function ConnectionsSettingsPage() {
                             />
                         </div>
                         <div className="flex justify-end gap-3 mt-6">
-                            <button 
+                            <button
                                 type="button"
                                 onClick={() => setAddingType(null)}
                                 className="px-4 py-2 text-sm font-medium hover:bg-foreground/5 rounded-lg transition-colors"
                             >
                                 Cancel
                             </button>
-                            <button 
+                            <button
                                 type="submit"
                                 className="px-4 py-2 bg-primary text-white rounded-lg font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform"
                             >
@@ -246,7 +247,7 @@ export default function ConnectionsSettingsPage() {
                             <div className="flex items-center gap-4">
                                 <div className="w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
                                     <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-                                      <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/>
+                                        <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z" />
                                     </svg>
                                 </div>
                                 <div>
@@ -258,7 +259,7 @@ export default function ConnectionsSettingsPage() {
                                 </div>
                             </div>
                             <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button 
+                                <button
                                     onClick={() => handleEditClick(conn)}
                                     className="p-2 hover:bg-foreground/5 rounded-lg text-foreground/40 hover:text-primary transition-colors"
                                     title="Edit Settings"
@@ -267,7 +268,7 @@ export default function ConnectionsSettingsPage() {
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                     </svg>
                                 </button>
-                                <button 
+                                <button
                                     onClick={() => deleteConnection(conn.id)}
                                     className="p-2 hover:bg-foreground/5 rounded-lg text-foreground/40 hover:text-red-500 transition-colors"
                                     title="Delete Connection"
@@ -277,13 +278,12 @@ export default function ConnectionsSettingsPage() {
                                     </svg>
                                 </button>
                                 <div className="w-px h-6 bg-border/50 mx-1" />
-                                <button 
+                                <button
                                     onClick={() => toggleConnection(conn.id, conn.enabled)}
-                                    className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${
-                                        conn.enabled 
-                                            ? "bg-foreground/5 hover:bg-red-500/10 hover:text-red-500" 
-                                            : "bg-primary text-white"
-                                    }`}
+                                    className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${conn.enabled
+                                        ? "bg-foreground/5 hover:bg-red-500/10 hover:text-red-500"
+                                        : "bg-primary text-white"
+                                        }`}
                                 >
                                     {conn.enabled ? "Disable" : "Enable"}
                                 </button>
