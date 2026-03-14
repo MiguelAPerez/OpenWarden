@@ -3,7 +3,8 @@ import { FileChange, PendingSuggestion } from "./types";
 export function extractMentionedPaths(text: string): string[] {
     const paths: string[] = [];
     // Matches @path but excludes @[... structured mentions
-    const mentionRegex = /@(?!!\[)([^\s\n\`\[\]]+)/g;
+    // We want to exclude trailing punctuation like , . ! ? : ; from the capture group
+    const mentionRegex = /@(?!!\[)([^\s\n\`\[\]]+?)(?=[,.!?:;]?(\s|\n|$)|$)/g;
     let match;
     while ((match = mentionRegex.exec(text)) !== null) {
         paths.push(match[1]);
@@ -72,22 +73,73 @@ export function parseDiffs(content: string, activeFilePath: string | null, fileC
         cleanContent = cleanContent.substring(0, b.start) + cleanContent.substring(b.end);
     }
 
-    // 2. Fallback: Search for @path or FILE: path followed by code block
-    // Greedy match but scoped by potential start of next mention to avoid swallowing multiple files
-    const looseRegex = /(?:@|FILE:\s*)([^\s\n\`\[\]]+)[^`]{0,150}```(?:[\w-]*)?\n([\s\S]*?)\n```(?=\s*(?:@|FILE:|\[INTERNAL|$))/gi;
-    cleanContent = cleanContent.replace(looseRegex, (match, path, code) => {
+    // 2. Fallback: Search for @path, FILE: path, or path in a header followed by a code block
+    // Supports @path, @`path`, FILE: path, ### 1. Update path, etc.
+    // Allow closing backticks to be optional if at the end of content
+    const looseRegex = /(?:@|FILE:\s*|###\s*(?:[\w\s]*?[:])?\s*(?:Update|Update\s*file|File|Full|Revised|Complete|Final|Path|Suggested|)\s*)(?:`|)([^`\s\n\[\]]+)(?:`|)[^`]{0,500}```(?:[\w-]*)?\n([\s\S]*?)(?:\n```|$(?![\s\S]))/gi;
+    
+    // Create a map to track all variations and pick the best
+    const candidates: Record<string, string[]> = {};
+
+    let match;
+    const knownPaths = Object.keys(fileContents);
+
+    while ((match = looseRegex.exec(cleanContent)) !== null) {
+        const [_, path, code] = match;
+        const cleanPath = path
+            .replace(/^@/, '')
+            .replace(/`/g, '')
+            .replace(/[.,:;!?]+$/, '')
+            .trim();
+        
+        // Fuzzy Resolution: Find if this path matches a known path suffix
+        // e.g. "ai.yml" matches "infrastructure/components/ai.yml"
+        let resolvedPath = cleanPath;
+        if (!fileContents[cleanPath]) {
+            const bestMatch = knownPaths.find(kp => 
+                kp === cleanPath || 
+                kp.endsWith('/' + cleanPath) || 
+                kp.endsWith('\\' + cleanPath)
+            );
+            if (bestMatch) resolvedPath = bestMatch;
+        }
+
+        if (!candidates[resolvedPath]) candidates[resolvedPath] = [];
+        candidates[resolvedPath].push(code.trim());
+    }
+
+    // Apply the best candidate for each file
+    for (const [path, codes] of Object.entries(candidates)) {
         if (!filesChanged[path]) {
+            const original = fileContents[path] || "";
+            
+            // Selection strategy:
+            // 1. Separate codes into those that change the file and those that don't
+            const withChanges = codes.filter(c => c !== original.trim());
+            const withoutChanges = codes.filter(c => c === original.trim());
+
+            // 2. Prefer blocks with changes. If multiple, pick the longest.
+            // This avoids "lazy" models providing the original file as the "longest" block 
+            // while providing a snippet with changes as a "shorter" block.
+            let best;
+            if (withChanges.length > 0) {
+                best = withChanges.sort((a, b) => b.length - a.length)[0];
+            } else {
+                best = withoutChanges.sort((a, b) => b.length - a.length)[0];
+            }
+
             filesChanged[path] = {
                 startLine: 0,
                 endLine: 0,
                 column: 0,
-                originalContent: fileContents[path] || "",
-                suggestedContent: code.trim()
+                originalContent: original,
+                suggestedContent: best
             };
-            return ""; 
         }
-        return match; 
-    });
+    }
+
+    // Clean up the text by removing all matches we processed
+    cleanContent = cleanContent.replace(looseRegex, "");
 
     // 3. Last Resort: Orphan code block for active file
     // Use the absolute outermost backticks for the orphan block

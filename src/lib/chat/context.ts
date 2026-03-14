@@ -38,10 +38,10 @@ export class ChatContext {
             throw new Error(`The selected agent "${agentConfig.name}" has no model configured. Please update it in the Agent Settings page.`);
         }
 
-        let personalityPrompt = agentConfig.systemPrompt;
+        let agentPersonalityPrompt = agentConfig.systemPrompt;
         if (agentConfig.systemPromptId) {
             const personality = db.select().from(systemPrompts).where(eq(systemPrompts.id, agentConfig.systemPromptId)).get();
-            if (personality) personalityPrompt = personality.content;
+            if (personality) agentPersonalityPrompt = personality.content;
         }
 
         const enabledSkills = db.select().from(skills).where(and(
@@ -80,7 +80,7 @@ export class ChatContext {
         return {
             repo,
             agentConfig,
-            personalityPrompt,
+            agentPersonalityPrompt,
             enabledSkills,
             enabledTools,
             ollamaConfig,

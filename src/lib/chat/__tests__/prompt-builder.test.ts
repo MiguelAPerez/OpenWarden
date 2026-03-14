@@ -14,7 +14,7 @@ describe("PromptBuilder", () => {
 
     const mockContext: ContextData = {
         repo: mockRepo as any, // eslint-disable-line @typescript-eslint/no-explicit-any
-        personalityPrompt: "You are a specialized bot.",
+        agentPersonalityPrompt: "You are a specialized bot.",
         enabledSkills: [
             { 
                 name: "Skill1", 
@@ -45,8 +45,8 @@ describe("PromptBuilder", () => {
         fileContents: {}
     } as any; // eslint-disable-line @typescript-eslint/no-explicit-any
 
-    it("should build a complete system prompt", () => {
-        const prompt = PromptBuilder.buildSystemPrompt(mockContext, "src/file.ts", "console.log('test')");
+    it("should build a complete system prompt", async () => {
+        const prompt = await PromptBuilder.buildSystemPrompt(mockContext, "src/file.ts", "console.log('test')");
         
         expect(prompt).toContain("You are a specialized bot.");
         expect(prompt).toContain("Available Skills:\n- Skill1: Desc1\nContent1");
@@ -59,31 +59,31 @@ describe("PromptBuilder", () => {
         expect(prompt).toContain("CRITICAL INSTRUCTIONS:");
     });
 
-    it("should use default personality if none provided", () => {
-        const context = { ...mockContext, personalityPrompt: "" };
-        const prompt = PromptBuilder.buildSystemPrompt(context, null, "");
-        expect(prompt).toContain("You are a helpful coding assistant.");
+    it("should use default personality if none provided", async () => {
+        const context = { ...mockContext, agentPersonalityPrompt: "" };
+        const prompt = await PromptBuilder.buildSystemPrompt(context, null, "");
+        expect(prompt).toContain("You are a documentation specialist.");
     });
 
-    it("should handle empty skills and tools", () => {
+    it("should handle empty skills and tools", async () => {
         const context = { ...mockContext, enabledSkills: [], enabledTools: [] };
-        const prompt = PromptBuilder.buildSystemPrompt(context, null, "");
+        const prompt = await PromptBuilder.buildSystemPrompt(context, null, "");
         expect(prompt).not.toContain("Available Skills:");
         expect(prompt).not.toContain("Available Tools:");
     });
 
-    it("should handle missing docs metadata", () => {
+    it("should handle missing docs metadata", async () => {
         const context = { 
             ...mockContext, 
             repo: { fullName: "test/empty", docsMetadata: null } as any // eslint-disable-line @typescript-eslint/no-explicit-any
         };
-        const prompt = PromptBuilder.buildSystemPrompt(context, null, "");
+        const prompt = await PromptBuilder.buildSystemPrompt(context, null, "");
         expect(prompt).toContain("Repository: test/empty");
         expect(prompt).not.toContain("Available Documentation Files:");
     });
 
-    it("should handle current file path being null", () => {
-        const prompt = PromptBuilder.buildSystemPrompt(mockContext, null, "");
+    it("should handle current file path being null", async () => {
+        const prompt = await PromptBuilder.buildSystemPrompt(mockContext, null, "");
         expect(prompt).not.toContain("Currently viewed file:");
     });
 });

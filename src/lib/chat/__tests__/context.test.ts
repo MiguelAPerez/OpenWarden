@@ -91,6 +91,6 @@ describe("ChatContext", () => {
         const context = new ChatContext("u1", "r1");
         const data = await context.load();
 
-        expect(data.personalityPrompt).toBe("External Prompt");
+        expect(data.agentPersonalityPrompt).toBe("External Prompt");
     });
 });

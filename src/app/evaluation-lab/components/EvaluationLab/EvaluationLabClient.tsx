@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { ContextGroupManager } from "./ContextGroupManager";
 import { BenchmarkRunManager } from "../Benchmark/BenchmarkRunManager";
 import { BenchmarkProgress } from "../Benchmark/BenchmarkProgress";
-import { BenchmarkResults } from "@/app/Benchmark/BenchmarkResults";
+import { BenchmarkResults } from "../Benchmark/BenchmarkResults";
 import { SystemPromptsManager } from "./SystemPromptsManager";
 import { SystemPromptSetManager } from "./SystemPromptSetManager";
 import { ContextGroup, Benchmark, BenchmarkRun, BenchmarkEntry, SystemPrompt, SystemPromptSet } from "@/types/agent";

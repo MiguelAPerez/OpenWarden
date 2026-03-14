@@ -11,7 +11,7 @@ import { authOptions } from "@/auth";
 import { revalidatePath } from "next/cache";
 
 const execAsync = promisify(exec);
-const WORKSPACES_BASE_DIR = path.join(process.cwd(), "data", "workspaces");
+const DATA_BASE_DIR = path.join(process.cwd(), "data");
 
 // Helper to get authenticated user
 async function getUserSession() {
@@ -85,7 +85,7 @@ export async function createSandbox(name: string, repoIds: string[]) {
 
     // 2. Construct volume mounts
     const mountArgs = selectedRepos.map(repo => {
-        const workspacePath = path.join(WORKSPACES_BASE_DIR, user.id, repo.fullName);
+        const workspacePath = path.join(DATA_BASE_DIR, user.id, "workspaces", repo.fullName);
         const absolutePath = path.resolve(workspacePath);
         return `-v "${absolutePath}:/workspace/${repo.name}"`;
     }).join(" ");

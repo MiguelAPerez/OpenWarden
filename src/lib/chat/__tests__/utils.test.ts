@@ -38,10 +38,10 @@ describe("chat utils", () => {
             expect(suggestion.filesChanged["loose.ts"].suggestedContent).toBe("loose content");
         });
 
-        it("handles duplicate loose format markers", () => {
+        it("handles duplicate loose format markers by picking the longest", () => {
             const content = "FILE: loose.ts\n```js\nfirst\n```\nFILE: loose.ts\n```js\nsecond\n```";
             const { suggestion } = parseDiffs(content, null, {});
-            expect(suggestion.filesChanged["loose.ts"].suggestedContent).toBe("first");
+            expect(suggestion.filesChanged["loose.ts"].suggestedContent).toBe("second");
         });
 
         it("falls back to orphan code block for active file", () => {

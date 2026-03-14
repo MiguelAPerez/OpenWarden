@@ -15,6 +15,7 @@ export interface FileChange {
     column: number;
     originalContent: string;
     suggestedContent: string;
+    preSuggestionContent?: string; // Content of the file/tab right before the suggestion was applied
 }
 
 export interface PendingSuggestion {
@@ -30,7 +31,7 @@ import { repositories, agentConfigurations, skills, tools, ollamaConfigurations 
 export interface ContextData {
     repo: InferSelectModel<typeof repositories>;
     agentConfig: InferSelectModel<typeof agentConfigurations>;
-    personalityPrompt: string | null;
+    agentPersonalityPrompt: string | null;
     enabledSkills: InferSelectModel<typeof skills>[];
     enabledTools: InferSelectModel<typeof tools>[];
     ollamaConfig: InferSelectModel<typeof ollamaConfigurations>;

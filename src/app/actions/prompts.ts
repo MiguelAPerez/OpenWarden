@@ -7,6 +7,20 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { SystemPrompt } from "@/types/agent";
+import fs from "fs/promises";
+import path from "path";
+
+const SYSTEM_PROMPTS_DIR = path.join(process.cwd(), "data", "system");
+
+export async function getPromptFromFile(name: string): Promise<string> {
+    try {
+        const filePath = path.join(SYSTEM_PROMPTS_DIR, `${name.toUpperCase()}.md`);
+        return await fs.readFile(filePath, "utf-8");
+    } catch (error) {
+        console.warn(`Failed to read prompt ${name} from file, falling back to default.`, error);
+        return "You are a helpful coding assistant.";
+    }
+}
 
 export async function getSystemPrompts() {
     const session = await getServerSession(authOptions);

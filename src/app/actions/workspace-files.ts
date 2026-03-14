@@ -12,7 +12,7 @@ import { authOptions } from "@/auth";
 import { isPathBlocked } from "@/lib/constants";
 
 const execAsync = promisify(exec);
-const WORKSPACES_BASE_DIR = path.join(process.cwd(), "data", "workspaces");
+const DATA_BASE_DIR = path.join(process.cwd(), "data");
 
 // Helper to get authenticated user
 async function getUserSession() {
@@ -34,7 +34,7 @@ export async function getRepoFileTree(repoId: string): Promise<FileNode[]> {
     const repo = db.select().from(repositories).where(eq(repositories.id, repoId)).get();
     if (!repo) throw new Error("Repository not found");
 
-    const workspaceRepoDir = path.join(WORKSPACES_BASE_DIR, user.id, repo.fullName);
+    const workspaceRepoDir = path.join(DATA_BASE_DIR, user.id, "workspaces", repo.fullName);
 
     async function buildTree(dir: string, baseDir: string): Promise<FileNode[]> {
         const entries = await fs.readdir(dir, { withFileTypes: true });
@@ -81,7 +81,7 @@ export async function getWorkspaceFileContent(repoId: string, filePath: string) 
     const repo = db.select().from(repositories).where(eq(repositories.id, repoId)).get();
     if (!repo) throw new Error("Repository not found");
 
-    const fullPath = path.join(WORKSPACES_BASE_DIR, user.id, repo.fullName, filePath);
+    const fullPath = path.join(DATA_BASE_DIR, user.id, "workspaces", repo.fullName, filePath);
     try {
         return await fs.readFile(fullPath, "utf-8");
     } catch (e) {
@@ -97,7 +97,7 @@ export async function saveWorkspaceFile(repoId: string, filePath: string, conten
     const repo = db.select().from(repositories).where(eq(repositories.id, repoId)).get();
     if (!repo) throw new Error("Repository not found");
 
-    const fullPath = path.join(WORKSPACES_BASE_DIR, user.id, repo.fullName, filePath);
+    const fullPath = path.join(DATA_BASE_DIR, user.id, "workspaces", repo.fullName, filePath);
     try {
         await fs.mkdir(path.dirname(fullPath), { recursive: true });
         await fs.writeFile(fullPath, content, "utf-8");
@@ -115,7 +115,7 @@ export async function revertWorkspaceFile(repoId: string, filePath: string) {
     const repo = db.select().from(repositories).where(eq(repositories.id, repoId)).get();
     if (!repo) throw new Error("Repository not found");
 
-    const workspaceRepoDir = path.join(WORKSPACES_BASE_DIR, user.id, repo.fullName);
+    const workspaceRepoDir = path.join(DATA_BASE_DIR, user.id, "workspaces", repo.fullName);
     const fullPath = path.join(workspaceRepoDir, filePath);
 
     try {
@@ -142,7 +142,7 @@ export async function getWorkspaceChangedFiles(repoId: string) {
     const repo = db.select().from(repositories).where(eq(repositories.id, repoId)).get();
     if (!repo) throw new Error("Repository not found");
 
-    const workspaceRepoDir = path.join(WORKSPACES_BASE_DIR, user.id, repo.fullName);
+    const workspaceRepoDir = path.join(DATA_BASE_DIR, user.id, "workspaces", repo.fullName);
 
     try {
         const { stdout } = await execAsync(`git -C "${workspaceRepoDir}" status --porcelain`);
@@ -167,7 +167,7 @@ export async function getGitFileContent(repoId: string, filePath: string, ref: s
     const repo = db.select().from(repositories).where(eq(repositories.id, repoId)).get();
     if (!repo) throw new Error("Repository not found");
 
-    const workspaceRepoDir = path.join(WORKSPACES_BASE_DIR, user.id, repo.fullName);
+    const workspaceRepoDir = path.join(DATA_BASE_DIR, user.id, "workspaces", repo.fullName);
 
     try {
         const gitRef = ref ? `${ref}:${filePath}` : `:${filePath}`;

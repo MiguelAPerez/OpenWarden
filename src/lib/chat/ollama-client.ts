@@ -4,6 +4,7 @@ export class OllamaClient {
     constructor(private readonly config: { url: string }, private readonly model: string, private readonly temperature: number) { }
 
     async chat(messages: ChatMessage[]): Promise<string> {
+        console.log(messages);
         const response = await fetch(`${this.config.url}/api/chat`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -17,6 +18,7 @@ export class OllamaClient {
 
         if (!response.ok) throw new Error(`Ollama API error: ${response.statusText}`);
         const data = await response.json();
+        console.log(data);
         return data.message.content;
     }
 
@@ -45,7 +47,7 @@ export class OllamaClient {
 
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split("\n");
-            
+
             // Keep the last partial line in the buffer
             buffer = lines.pop() || "";
 

@@ -9,10 +9,11 @@ import { getCachedRepositories, getRepoDataByFullName } from "@/app/actions/repo
 import { SystemPrompt } from "@/types/agent";
 
 export default async function AgentPage({
-    searchParams
+    searchParams: searchParamsPromise
 }: {
-    searchParams: { repo?: string }
+    searchParams: Promise<{ repo?: string }>
 }) {
+    const searchParams = await searchParamsPromise;
     const allRepos = await getCachedRepositories();
     const configRepo = allRepos.find(r => r.isConfigRepository);
     const targetRepo = searchParams.repo || configRepo?.fullName;
