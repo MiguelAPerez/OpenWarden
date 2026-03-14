@@ -87,9 +87,10 @@ export class ChatContext {
             agentPersonalityPrompt,
             enabledSkills,
             enabledTools,
-            ollamaConfig: ollamaConfig!, // Note: We might need to handle the case where one is missing better if both are optional, but for now we expect at least one.
-            anthropicConfig,
+            ollamaConfig: ollamaConfig || undefined,
+            anthropicConfig: anthropicConfig || undefined,
             initialFileContent: this.filePath ? (fileContents[this.filePath] || "") : "",
+
 
             fileContents
         };

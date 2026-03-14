@@ -53,8 +53,9 @@ export interface ContextData {
     agentPersonalityPrompt: string | null;
     enabledSkills: InferSelectModel<typeof skills>[];
     enabledTools: InferSelectModel<typeof tools>[];
-    ollamaConfig: InferSelectModel<typeof ollamaConfigurations>;
+    ollamaConfig?: InferSelectModel<typeof ollamaConfigurations>;
     anthropicConfig?: InferSelectModel<typeof anthropicConfigurations>;
+
     initialFileContent: string;
     fileContents: Record<string, string>;
 }
