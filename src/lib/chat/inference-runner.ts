@@ -11,7 +11,7 @@ export class InferenceRunner {
     ) { }
 
 
-    async run(prompt: string, initialFilePath: string | null, initialFileContent: string): Promise<ChatResponse> {
+    async run(prompt: string, initialFilePath: string | null, initialFileContent: string, sysPrompt: string): Promise<ChatResponse> {
         const messages: ChatMessage[] = [
             { role: "system", content: "" }, // Placeholder, will be updated in the loop
             { role: "user", content: prompt }
@@ -23,7 +23,7 @@ export class InferenceRunner {
 
         for (let step = 0; step < 2; step++) {
             console.log(`[Chat Inference] Step ${step + 1}/2...`);
-            const systemPrompt = await PromptBuilder.buildSystemPrompt(this.contextData, currentFilePath, currentFileContent);
+            const systemPrompt = await PromptBuilder.buildSystemPrompt(this.contextData, currentFilePath, currentFileContent, sysPrompt);
             messages[0].content = systemPrompt; // Refresh system prompt with new context if navigated
 
             const content = await this.chatClient.chat(messages);

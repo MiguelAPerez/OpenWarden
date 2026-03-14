@@ -8,14 +8,11 @@ import { getPromptFromFile } from "@/app/actions/prompts";
  * This class is used to build the system prompt for documention file. Used by our knowledge base agent.
  */
 export class PromptBuilder {
-    static async buildSystemPrompt(contextData: ContextData, currentFilePath: string | null, currentFileContent: string) {
+    static async buildSystemPrompt(contextData: ContextData, currentFilePath: string | null, currentFileContent: string, sysPrompt: string) {
         const { repo, agentPersonalityPrompt, enabledSkills, enabledTools } = contextData;
-        const [formatPrompt, docInstructions] = await Promise.all([
-            getPromptFromFile("FORMAT"),
-            getPromptFromFile("DOCUMENTATION")
-        ]);
+        const formatPrompt = await getPromptFromFile("FORMAT");
 
-        let prompt = `${formatPrompt}\n\n${docInstructions}`;
+        let prompt = `${formatPrompt}\n\n${sysPrompt}`;
 
         if (agentPersonalityPrompt) {
             prompt = `${agentPersonalityPrompt}\n\n${prompt}`;

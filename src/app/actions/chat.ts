@@ -7,6 +7,7 @@ import { ChatClientFactory } from "@/lib/chat/client-factory";
 import { InferenceRunner } from "@/lib/chat/inference-runner";
 import { ChatMessage, ChatResponse } from "@/lib/chat/types";
 import { extractMentionedPaths, parseDiffs, parseTechnicalPlan } from "@/lib/chat/utils";
+import { PromptBuilder } from "@/lib/chat/prompt-builder";
 import { getPromptFromFile } from "./prompts";
 
 export type { ChatMessage, ChatResponse, FileChange, PendingSuggestion, TechnicalPlan, PlanStep } from "@/lib/chat/types";
@@ -20,13 +21,14 @@ export async function chatWithDoc(repoId: string, filePath: string | null, promp
 }
 
 export async function chatWithDocInternal(repoId: string, filePath: string | null, prompt: string, userId: string, agentId?: string): Promise<ChatResponse> {
+    const docPrompt = await getPromptFromFile("DOCUMENTATION");
     const context = new ChatContext(userId, repoId, agentId, filePath);
     const contextData = await context.load();
 
     const client = ChatClientFactory.getClient(contextData);
     const runner = new InferenceRunner(userId, repoId, contextData, client);
 
-    return runner.run(prompt, filePath, contextData.initialFileContent);
+    return runner.run(prompt, filePath, contextData.initialFileContent, docPrompt);
 }
 
 export async function chatWithAgent(
@@ -58,26 +60,15 @@ export async function chatWithAgentInternal(
     const client = ChatClientFactory.getClient(contextData);
 
     // Build the system prompt with the "Diff Generator" instructions
-    const [baseFormat, coderInstructions] = await Promise.all([
-        getPromptFromFile("FORMAT"),
-        getPromptFromFile("CODER")
-    ]);
-
-    let systemPrompt = `${baseFormat}\n\n${coderInstructions}`;
-
-    if (contextData.agentPersonalityPrompt) {
-        systemPrompt = `${contextData.agentPersonalityPrompt}\n\n${systemPrompt}`;
-    }
-
-    // Add existing skills
-    if (contextData.enabledSkills.length > 0) {
-        systemPrompt += "\n\nAvailable Skills:\n" + contextData.enabledSkills.map((s) => `- ${s.name}: ${s.description}\n${s.content}`).join("\n\n");
-    }
+    const coderInstructions = await getPromptFromFile("CODER");
 
     const messages: ChatMessage[] = [
-        { role: "system", content: systemPrompt },
+        { role: "system", content: "" }, // Placeholder
         ...history,
     ];
+
+    const systemPrompt = await PromptBuilder.buildSystemPrompt(contextData, filePath, contextData.initialFileContent || "", coderInstructions);
+    messages[0].content = systemPrompt;
 
     if (Object.keys(contextData.fileContents).length > 0) {
         let contextMessage = "Here is the content of the files currently relevant to the conversation:\n\n";
@@ -119,15 +110,15 @@ export async function getTechnicalPlan(
     const client = ChatClientFactory.getClient(contextData);
 
     // Build the system prompt with the "Planner" instructions
-    let systemPrompt = await getPromptFromFile("PLANNER");
-    if (contextData.agentPersonalityPrompt) {
-        systemPrompt = `${contextData.agentPersonalityPrompt}\n\n${systemPrompt}`;
-    }
+    const plannerInstructions = await getPromptFromFile("PLANNER");
 
     const messages: ChatMessage[] = [
-        { role: "system", content: systemPrompt },
+        { role: "system", content: "" }, // Placeholder
         ...history,
     ];
+
+    const systemPrompt = await PromptBuilder.buildSystemPrompt(contextData, filePath, contextData.initialFileContent || "", plannerInstructions);
+    messages[0].content = systemPrompt;
 
     if (Object.keys(contextData.fileContents).length > 0) {
         let contextMessage = "Here is the content of the files currently relevant to the conversation:\n\n";

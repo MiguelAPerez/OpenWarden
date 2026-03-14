@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/auth";
 import { ChatContext } from "@/lib/chat/context";
 import { ChatClientFactory } from "@/lib/chat/client-factory";
+import { PromptBuilder } from "@/lib/chat/prompt-builder";
 import { extractMentionedPaths } from "@/lib/chat/utils";
 
 import { getPromptFromFile } from "@/app/actions/prompts";
@@ -20,7 +21,10 @@ export async function POST(req: NextRequest) {
 
     try {
         const { repoId, filePath, prompt, sysPrompt, agentId, history } = await req.json();
-        let systemPrompt = sysPrompt;
+        let basePrompt = sysPrompt;
+        if (!basePrompt) {
+            basePrompt = await getPromptFromFile("GENERAL");
+        }
 
         if (!prompt || !agentId) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -33,13 +37,7 @@ export async function POST(req: NextRequest) {
 
         const chatClient = ChatClientFactory.getClient(contextData);
 
-        if (contextData.agentPersonalityPrompt) {
-            systemPrompt = `${contextData.agentPersonalityPrompt}\n\n${systemPrompt}`;
-        }
-
-        if (contextData.enabledSkills.length > 0) {
-            systemPrompt += "\n\nAvailable Skills:\n" + contextData.enabledSkills.map((s) => `- ${s.name}: ${s.description}\n${s.content}`).join("\n\n");
-        }
+        const systemPrompt = await PromptBuilder.buildSystemPrompt(contextData, filePath, contextData.initialFileContent || "", basePrompt);
 
         const messages = [
             { role: "system", content: systemPrompt },
