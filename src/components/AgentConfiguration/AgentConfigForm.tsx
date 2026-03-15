@@ -5,6 +5,7 @@ import { getOllamaModels } from "@/app/actions/ollama";
 import { getAnthropicModels } from "@/app/actions/anthropic";
 import { AgentConfig, SystemPrompt } from "@/types/agent";
 import { getGoogleModels } from "@/app/actions/google";
+import { getAgentFiles, saveAgentFiles, restoreAgentFiles } from "@/app/actions/agent-files";
 
 
 export const AgentConfigForm = ({
@@ -26,6 +27,10 @@ export const AgentConfigForm = ({
     const [ollamaModels, setOllamaModels] = useState<{ name: string; details: string | null }[]>([]);
     const [anthropicModels, setAnthropicModels] = useState<{ name: string; details: string | null }[]>([]);
     const [googleModels, setGoogleModels] = useState<{ name: string; details: string | null }[]>([]);
+    const [personalityContent, setPersonalityContent] = useState("");
+    const [identityContent, setIdentityContent] = useState("");
+    const [workflowContent, setWorkflowContent] = useState("");
+    const [isRestoring, setIsRestoring] = useState(false);
 
 
     useEffect(() => {
@@ -46,6 +51,16 @@ export const AgentConfigForm = ({
         loadModels();
     }, []);
 
+    useEffect(() => {
+        if (initialConfig?.name) {
+            getAgentFiles(initialConfig.name).then(files => {
+                setPersonalityContent(files["PERSONALITY.md"] || "");
+                setIdentityContent(files["IDENTITY.md"] || "");
+                setWorkflowContent(files["WORKFLOW.md"] || "");
+            });
+        }
+    }, [initialConfig?.name]);
+
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -60,6 +75,14 @@ export const AgentConfigForm = ({
                 systemPromptId: systemPromptId || null,
                 temperature
             });
+
+            if (initialConfig?.id) {
+                await saveAgentFiles(name, {
+                    "PERSONALITY.md": personalityContent,
+                    "IDENTITY.md": identityContent,
+                    "WORKFLOW.md": workflowContent
+                });
+            }
 
             setMessage("Configuration saved successfully!");
             router.refresh();
@@ -82,6 +105,24 @@ export const AgentConfigForm = ({
             alert("Failed to delete agent.");
         } finally {
             setIsDeleting(false);
+        }
+    };
+
+    const handleRestore = async () => {
+        if (!initialConfig?.name || !confirm("Are you sure you want to RESTORE ALL FILES to defaults? Current changes will be lost.")) return;
+        setIsRestoring(true);
+        try {
+            await restoreAgentFiles(initialConfig.name, systemPromptId || "DEFAULT_PERSONALITY");
+            const files = await getAgentFiles(initialConfig.name);
+            setPersonalityContent(files["PERSONALITY.md"] || "");
+            setIdentityContent(files["IDENTITY.md"] || "");
+            setWorkflowContent(files["WORKFLOW.md"] || "");
+            setMessage("Files restored to defaults.");
+        } catch (err) {
+            console.error(err);
+            alert("Failed to restore files.");
+        } finally {
+            setIsRestoring(false);
         }
     };
 
@@ -205,7 +246,7 @@ export const AgentConfigForm = ({
                 </div>
 
                 <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground/70">Personality</label>
+                    <label className="text-sm font-medium text-foreground/70">{initialConfig ? "Restore From Personality" : "Initial Personality"}</label>
                     <div className="relative group/select">
                         <select
                             value={systemPromptId}
@@ -224,6 +265,52 @@ export const AgentConfigForm = ({
                     </div>
                 </div>
             </div>
+
+            {initialConfig && !isManaged && (
+                <div className="space-y-6 pt-4 border-t border-border">
+                    <div className="flex items-center justify-between">
+                        <h3 className="font-semibold text-lg">Agent Core Files</h3>
+                        <button
+                            type="button"
+                            onClick={handleRestore}
+                            disabled={isRestoring || isSaving}
+                            className="text-xs px-3 py-1 bg-red-500/10 text-red-500 rounded-full hover:bg-red-500/20 transition-all font-medium border border-red-500/20"
+                        >
+                            {isRestoring ? "Restoring..." : "Restore Defaults"}
+                        </button>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <label className="text-xs font-mono text-foreground/50 uppercase tracking-wider">PERSONALITY.md</label>
+                            <textarea
+                                value={personalityContent}
+                                onChange={(e) => setPersonalityContent(e.target.value)}
+                                rows={6}
+                                className="w-full bg-background/50 border border-border rounded-xl px-4 py-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs font-mono text-foreground/50 uppercase tracking-wider">IDENTITY.md</label>
+                            <textarea
+                                value={identityContent}
+                                onChange={(e) => setIdentityContent(e.target.value)}
+                                rows={6}
+                                className="w-full bg-background/50 border border-border rounded-xl px-4 py-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs font-mono text-foreground/50 uppercase tracking-wider">WORKFLOW.md</label>
+                            <textarea
+                                value={workflowContent}
+                                onChange={(e) => setWorkflowContent(e.target.value)}
+                                rows={6}
+                                className="w-full bg-background/50 border border-border rounded-xl px-4 py-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="space-y-2">
                 <div className="flex justify-between">

@@ -2,10 +2,8 @@ import { renderHook, act } from "@testing-library/react";
 import { useChatInteraction } from "../useChatInteraction";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
 import { RootState } from "@/lib/store/store";
-import * as chatActions from "@/app/actions/chat";
 
 jest.mock("@/lib/store/hooks");
-jest.mock("@/app/actions/chat");
 
 describe("useChatInteraction", () => {
     const dispatch = jest.fn();
@@ -27,10 +25,7 @@ describe("useChatInteraction", () => {
             pendingSuggestion: null,
             chatTab: null,
             contextFiles: [],
-            technicalPlan: {
-                chatId: 1,
-                steps: [{ action: "modify", file: "test.ts", rationale: "testing", status: "pending" }]
-            },
+            technicalPlan: null,
         },
     };
 
@@ -38,16 +33,26 @@ describe("useChatInteraction", () => {
         jest.clearAllMocks();
         (useAppDispatch as unknown as jest.Mock).mockReturnValue(dispatch);
         (useAppSelector as unknown as jest.Mock).mockImplementation((selector: (state: RootState) => unknown) => selector(mockState as unknown as RootState));
-        (chatActions.getTechnicalPlan as jest.Mock).mockResolvedValue({
-            message: "I have a plan.",
-            plan: mockState.chat.technicalPlan
-        });
-        (chatActions.chatWithCoder as jest.Mock).mockResolvedValue({
-            message: "I suggested some changes.",
-            suggestion: {
-                filesChanged: { "test.ts": { suggestedContent: "new content", originalContent: "initial content" } }
+        
+        // Mock fetch for streaming
+        const mockResponse = {
+            ok: true,
+            body: {
+                getReader: () => {
+                    let count = 0;
+                    return {
+                        read: () => {
+                            if (count === 0) {
+                                count++;
+                                return Promise.resolve({ done: false, value: new TextEncoder().encode("Chunk 1") });
+                            }
+                            return Promise.resolve({ done: true });
+                        }
+                    };
+                }
             }
-        });
+        };
+        global.fetch = jest.fn().mockResolvedValue(mockResponse);
     });
 
     it("handles sending a message", async () => {
@@ -57,7 +62,12 @@ describe("useChatInteraction", () => {
             await result.current.handleSendMessage("fix bug");
         });
 
-        expect(chatActions.chatWithCoder).toHaveBeenCalledWith("repo-1", "test.ts", "fix bug", "agent-1", []);
+        expect(global.fetch).toHaveBeenCalledWith("/api/chat", expect.objectContaining({
+            method: "POST",
+            body: expect.stringContaining('"prompt":"fix bug"')
+        }));
+        
         expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: expect.stringContaining("addChatMessage") }));
+        expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: expect.stringContaining("updateChatMessageById") }));
     });
 });

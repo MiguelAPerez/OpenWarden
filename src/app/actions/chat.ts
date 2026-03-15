@@ -5,7 +5,7 @@ import { authOptions } from "@/auth";
 import { ChatContext } from "@/lib/chat/context";
 import { ChatClientFactory } from "@/lib/chat/client-factory";
 import { InferenceRunner } from "@/lib/chat/inference-runner";
-import { ChatMessage, ChatResponse } from "@/lib/chat/types";
+import { ChatMessage, ChatResponse, WorkMode } from "@/lib/chat/types";
 import { extractMentionedPaths, parseDiffs, parseTechnicalPlan } from "@/lib/chat/utils";
 import { PromptBuilder } from "@/lib/chat/prompt-builder";
 import { getPromptFromFile } from "./prompts";
@@ -83,15 +83,26 @@ export async function chatWithAgentInternal(
     // Simple Channel Response
     const promptStart = Date.now();
     instructions = (discordChannelId) ? await getPromptFromFile("DISCORD") : null;
-    const systemPrompt = await PromptBuilder.buildSystemPrompt(contextData, null, contextData.initialFileContent || "", instructions);
+    const mode: WorkMode = discordChannelId ? "DISCORD" : "GENERAL";
+    const systemPrompt = await PromptBuilder.buildSystemPrompt(contextData, null, contextData.initialFileContent || "", mode, instructions);
     messages[0].content = systemPrompt;
     const promptBuildTime = Date.now() - promptStart;
 
     const inferenceStart = Date.now();
-    const responseContent = await client.chat(messages);
+    const { content: responseContent, usage } = await client.chat(messages);
     const inferenceTime = Date.now() - inferenceStart;
 
     console.log(`[chatWithAgentInternal] userId: ${userId} context: ${contextLoadTime}ms, prompt: ${promptBuildTime}ms, inference: ${inferenceTime}ms, total: ${Date.now() - start}ms`);
+
+    // Record usage stats
+    if (agentId) {
+        try {
+            const { recordAgentUsage } = await import("@/app/actions/performance");
+            await recordAgentUsage(agentId, usage?.promptTokens || 0, usage?.completionTokens || 0, inferenceTime);
+        } catch (e) {
+            console.error("Failed to record agent usage:", e);
+        }
+    }
 
     // We don't expect an specific format here, just a message
     return {
@@ -118,7 +129,7 @@ export async function chatWithDocInternal(repoId: string, filePath: string | nul
     // TODO: move json parser into a global place like parseDiff
     const runner = new InferenceRunner(userId, repoId, contextData, client);
 
-    return runner.run(prompt, filePath, contextData.initialFileContent, docPrompt);
+    return runner.run(prompt, filePath, contextData.initialFileContent, docPrompt, "DOCUMENTATION");
 }
 
 
@@ -151,7 +162,7 @@ export async function chatWithCoderInternal(
         ...history,
     ];
 
-    const systemPrompt = await PromptBuilder.buildSystemPrompt(contextData, filePath, contextData.initialFileContent || "", instructions);
+    const systemPrompt = await PromptBuilder.buildSystemPrompt(contextData, filePath, contextData.initialFileContent || "", "CODER", instructions);
     messages[0].content = systemPrompt;
 
     if (Object.keys(contextData.fileContents).length > 0) {
@@ -165,7 +176,19 @@ export async function chatWithCoderInternal(
         messages.push({ role: "user", content: prompt });
     }
 
-    const responseContent = await client.chat(messages);
+    const inferenceStart = Date.now();
+    const { content: responseContent, usage } = await client.chat(messages);
+    const inferenceTime = Date.now() - inferenceStart;
+
+    // Record usage stats
+    if (agentId) {
+        try {
+            const { recordAgentUsage } = await import("@/app/actions/performance");
+            await recordAgentUsage(agentId, usage?.promptTokens || 0, usage?.completionTokens || 0, inferenceTime);
+        } catch (e) {
+            console.error("Failed to record agent usage:", e);
+        }
+    }
 
     // Parse diffs and clean content
     const { suggestion, cleanContent } = parseDiffs(responseContent, filePath, contextData.fileContents);
@@ -204,7 +227,7 @@ export async function getTechnicalPlan(
         ...history,
     ];
 
-    const systemPrompt = await PromptBuilder.buildSystemPrompt(contextData, filePath, contextData.initialFileContent || "", plannerInstructions);
+    const systemPrompt = await PromptBuilder.buildSystemPrompt(contextData, filePath, contextData.initialFileContent || "", "PLANNER", plannerInstructions);
     messages[0].content = systemPrompt;
 
     if (Object.keys(contextData.fileContents).length > 0) {
@@ -218,7 +241,20 @@ export async function getTechnicalPlan(
         messages.push({ role: "user", content: prompt });
     }
 
-    const responseContent = await client.chat(messages);
+    const inferenceStart = Date.now();
+    const { content: responseContent, usage } = await client.chat(messages);
+    const inferenceTime = Date.now() - inferenceStart;
+
+    // Record usage stats
+    if (agentId) {
+        try {
+            const { recordAgentUsage } = await import("@/app/actions/performance");
+            await recordAgentUsage(agentId, usage?.promptTokens || 0, usage?.completionTokens || 0, inferenceTime);
+        } catch (e) {
+            console.error("Failed to record agent usage:", e);
+        }
+    }
+
     const plan = parseTechnicalPlan(responseContent);
 
     // Clean up the message content by removing the JSON block

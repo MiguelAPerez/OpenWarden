@@ -1,4 +1,7 @@
+export type WorkMode = 'CODER' | 'DOCUMENTATION' | 'REVIEWER' | 'PLANNER' | 'DISCORD' | 'GENERAL';
+
 export interface ChatMessage {
+    id?: string;
     role: "system" | "user" | "assistant";
     content: string;
 }
@@ -10,9 +13,14 @@ export interface ChatResponse {
     plan?: TechnicalPlan | null;
 }
 
+export interface Usage {
+    promptTokens: number;
+    completionTokens: number;
+}
+
 export interface ChatClient {
-    chat(messages: ChatMessage[]): Promise<string>;
-    streamChat(messages: ChatMessage[]): AsyncGenerator<string>;
+    chat(messages: ChatMessage[]): Promise<{ content: string; usage?: Usage }>;
+    streamChat(messages: ChatMessage[]): AsyncGenerator<string | { usage: Usage }>;
 }
 
 
@@ -59,5 +67,8 @@ export interface ContextData {
 
     initialFileContent: string;
     fileContents: Record<string, string>;
+    agentIdentity?: string | null;
+    agentWorkflow?: string | null;
+    agentPersonality?: string | null;
 }
 

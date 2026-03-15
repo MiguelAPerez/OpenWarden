@@ -6,7 +6,6 @@ import { ContextGroupManager } from "./ContextGroupManager";
 import { BenchmarkRunManager } from "../Benchmark/BenchmarkRunManager";
 import { BenchmarkProgress } from "../Benchmark/BenchmarkProgress";
 import { BenchmarkResults } from "../Benchmark/BenchmarkResults";
-import { SystemPromptsManager } from "./SystemPromptsManager";
 import { SystemPromptSetManager } from "./SystemPromptSetManager";
 import { ContextGroup, Benchmark, BenchmarkRun, BenchmarkEntry, SystemPrompt, SystemPromptSet } from "@/types/agent";
 
@@ -45,7 +44,6 @@ export const EvaluationLabClient = ({
         { id: "results", label: "Results", icon: "🏆" },
         { id: "runs", label: "Runs", icon: "🚀" },
         { id: "progress", label: "Progress", icon: "📊" },
-        { id: "system-prompts", label: "Personas", icon: "👤" },
         { id: "prompt-sets", label: "Sets", icon: "📑" },
         { id: "groups", label: "Response Tests", icon: "📁" },
     ];
@@ -97,9 +95,6 @@ export const EvaluationLabClient = ({
                         prompts={initialSystemPrompts}
                         promptSets={initialSystemPromptSets}
                     />
-                )}
-                {activeTab === "system-prompts" && (
-                    <SystemPromptsManager initialPrompts={initialSystemPrompts} />
                 )}
                 {activeTab === "prompt-sets" && (
                     <SystemPromptSetManager initialSets={initialSystemPromptSets} prompts={initialSystemPrompts} />
