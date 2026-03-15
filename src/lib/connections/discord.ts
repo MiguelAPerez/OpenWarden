@@ -93,13 +93,44 @@ export class DiscordBot {
         }
     }
 
+    private isChannelAuthorized(channelId: string, channelName: string): boolean {
+        const authorizedChannels = this.metadata.channels || {};
+        
+        // If no channels are authorized, we respond to nothing (strict whitelist)
+        if (Object.keys(authorizedChannels).length === 0) return false;
+
+        for (const [pattern, config] of Object.entries(authorizedChannels)) {
+            if (!config.enabled) continue;
+
+            // 1. Direct ID match
+            if (pattern === channelId) return true;
+
+            // 2. Direct Name match
+            if (pattern === channelName) return true;
+
+            // 3. Pattern match (wildcards)
+            if (pattern.includes('*') || pattern.includes('?')) {
+                const regexPattern = pattern
+                    .replace(/[.+^${}()|[\]\\]/g, '\\$&') // Escape regex special chars
+                    .replace(/\*/g, '.*')
+                    .replace(/\?/g, '.');
+                const regex = new RegExp(`^${regexPattern}$`, 'i');
+                if (regex.test(channelName)) return true;
+            }
+        }
+
+        return false;
+    }
+
     private async handleMessage(message: Message) {
         if (message.author.bot) return;
 
-        // Check channel overrides in metadata
+        // Strict Whitelist Check
         const channelId = message.channel.id;
-        const channelConfig = this.metadata.channels?.[channelId];
-        if (channelConfig && channelConfig.enabled === false) {
+        const channelName = 'name' in message.channel ? (message.channel as { name: string }).name : "";
+        
+        if (!this.isChannelAuthorized(channelId, channelName)) {
+            console.log(`[DiscordBot] Ignoring message in unauthorized channel: ${channelName} (${channelId})`);
             return;
         }
 

@@ -21,6 +21,13 @@ export default function ConnectionsSettingsPage() {
     const [tokenLimitDaily, setTokenLimitDaily] = useState<string>("");
     const [metadata, setMetadata] = useState<{ channels: Record<string, { name: string; enabled: boolean }> }>({ channels: {} });
     const [isLoading, setIsLoading] = useState(true);
+    const [initialData, setInitialData] = useState<{
+        name: string;
+        agentId: string;
+        token: string;
+        tokenLimitDaily: string;
+        metadata: string;
+    } | null>(null);
     const dropdownRef = React.useRef<HTMLDivElement>(null);
     const [newChannelId, setNewChannelId] = useState("");
     const [newChannelName, setNewChannelName] = useState("");
@@ -107,6 +114,7 @@ export default function ConnectionsSettingsPage() {
         setSelectedAgentId("");
         setTokenLimitDaily("");
         setMetadata({ channels: {} });
+        setInitialData(null);
         setIsDropdownOpen(false);
     };
 
@@ -124,9 +132,20 @@ export default function ConnectionsSettingsPage() {
         }
         try {
             const config = JSON.parse(conn.config);
-            setDiscordToken(config.token || "");
+            const token = config.token || "";
+            setDiscordToken(token);
+
+            // Store initial data for change tracking
+            setInitialData({
+                name: conn.name,
+                agentId: conn.agentId || "",
+                token: token,
+                tokenLimitDaily: conn.tokenLimitDaily?.toString() || "",
+                metadata: conn.metadata || JSON.stringify({ channels: {} })
+            });
         } catch {
             setDiscordToken("");
+            setInitialData(null);
         }
     };
 
@@ -162,6 +181,7 @@ export default function ConnectionsSettingsPage() {
             setBotName("");
             setTokenLimitDaily("");
             setMetadata({ channels: {} });
+            setInitialData(null);
             fetchConnections();
         } catch (err) {
             console.error("Failed to save connection:", err);
@@ -308,7 +328,7 @@ export default function ConnectionsSettingsPage() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-xs font-medium text-foreground/60 mb-2 caps tracking-wider">Channel Overrides</label>
+                                    <label className="block text-xs font-medium text-foreground/60 mb-2 caps tracking-wider">Authorized Channels (Whitelist)</label>
                                     <div className="space-y-2 mb-3">
                                         {Object.entries(metadata.channels || {}).map(([id, config]) => (
                                             <div key={id} className="flex items-center justify-between p-2 rounded-lg bg-foreground/5 border border-border/30">
@@ -342,7 +362,7 @@ export default function ConnectionsSettingsPage() {
                                             type="text"
                                             value={newChannelId}
                                             onChange={(e) => setNewChannelId(e.target.value)}
-                                            placeholder="Channel ID"
+                                            placeholder="ID, Name, or Pattern (e.g. general-*)"
                                             className="flex-1 bg-foreground/5 border border-border/50 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                                         />
                                         <input
@@ -357,10 +377,10 @@ export default function ConnectionsSettingsPage() {
                                             onClick={addChannelOverride}
                                             className="px-3 py-1.5 bg-foreground/10 hover:bg-foreground/20 rounded-xl text-xs font-bold transition-colors"
                                         >
-                                            Add Override
+                                            Authorize
                                         </button>
                                     </div>
-                                    <p className="text-[10px] text-foreground/40 mt-2">Explicitly enable or disable bot responses in specific channels.</p>
+                                    <p className="text-[10px] text-foreground/40 mt-2 italic">Strict Whitelist: The bot only responds in these channels. You can use IDs, exact names, or wildcards like <code>logs-*</code>.</p>
                                 </div>
                             </div>
                         </div>
@@ -374,7 +394,14 @@ export default function ConnectionsSettingsPage() {
                             </button>
                             <button
                                 type="submit"
-                                className="px-4 py-2 bg-primary text-white rounded-lg font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform"
+                                disabled={editingId !== null && (
+                                    initialData?.name === botName &&
+                                    initialData?.agentId === selectedAgentId &&
+                                    initialData?.token === discordToken &&
+                                    initialData?.tokenLimitDaily === tokenLimitDaily &&
+                                    initialData?.metadata === JSON.stringify(metadata)
+                                )}
+                                className="px-4 py-2 bg-primary text-white rounded-lg font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                             >
                                 {editingId ? "Update Connection" : "Save Connection"}
                             </button>
