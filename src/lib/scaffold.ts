@@ -69,12 +69,12 @@ export async function scaffoldAgent(userId: string, agentName: string, initialPe
                 await fs.access(dest);
                 // Already exists, don't overwrite
             } catch {
-                if (initialPersonality && (file === "IDENTITY.md" || file === "WORKFLOW.md")) {
-                    // For now, let's put the whole personality in IDENTITY and a generic one in WORKFLOW
-                    // Or maybe split it? Let's just put it in IDENTITY for now as requested.
-                    if (file === "IDENTITY.md") {
+                if (initialPersonality && (file === "PERSONALITY.md" || file === "IDENTITY.md" || file === "WORKFLOW.md")) {
+                    if (file === "PERSONALITY.md") {
                         await fs.writeFile(dest, initialPersonality);
                     } else {
+                        // For now, identity and workflow get the template content
+                        // The user can edit them later. 
                         await fs.copyFile(src, dest);
                     }
                 } else {

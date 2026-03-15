@@ -16,7 +16,7 @@ export class PromptBuilder {
         const { repo, agentPersonalityPrompt, enabledSkills, enabledTools } = contextData;
 
         // 1. [PERSONALITY]
-        let personality = agentPersonalityPrompt;
+        let personality = contextData.agentPersonality || agentPersonalityPrompt;
         if (!personality) {
             personality = await getPromptFromFile("DEFAULT_PERSONALITY");
         }

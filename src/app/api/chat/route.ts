@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
                             }
                         }
 
-                        if (maxSteps > 1 && step < maxSteps - 1) {
+                        if (workMode === "DOCUMENTATION" && repoId && maxSteps > 1 && step < maxSteps - 1) {
                             // Check for navigation in DOCUMENTATION mode
                             const jsonMatch = assistantContent.match(/\{[\s\S]*\}/);
                             let parsed = null;

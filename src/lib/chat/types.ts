@@ -64,5 +64,6 @@ export interface ContextData {
     fileContents: Record<string, string>;
     agentIdentity?: string | null;
     agentWorkflow?: string | null;
+    agentPersonality?: string | null;
 }
 

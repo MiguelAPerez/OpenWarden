@@ -108,6 +108,7 @@ export class ChatContext {
 
 
             fileContents,
+            agentPersonality: await this.loadAgentFile(agentConfig.name, "PERSONALITY.md"),
             agentIdentity: await this.loadAgentFile(agentConfig.name, "IDENTITY.md"),
             agentWorkflow: await this.loadAgentFile(agentConfig.name, "WORKFLOW.md"),
         };
