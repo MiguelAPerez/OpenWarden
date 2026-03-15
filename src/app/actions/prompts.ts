@@ -63,6 +63,7 @@ export async function deleteSystemPrompt(id: string) {
 
     db.delete(systemPrompts).where(eq(systemPrompts.id, id)).run();
     revalidatePath("/evaluation-lab");
+    revalidatePath("/agent");
 }
 
 export async function getSystemPromptSets() {

@@ -1,8 +1,8 @@
-import React from "react";
 import { getAgentConfigs, syncManagedAgents } from "@/app/actions/config";
 import { getSkills } from "@/app/actions/skills";
 import { getTools } from "@/app/actions/tools";
 import { getSystemPrompts, syncManagedPersonas } from "@/app/actions/prompts";
+import { getAgentPerformanceSummary } from "@/app/actions/performance";
 import { AgentPageClient } from "@/components/AgentConfiguration/AgentPageClient";
 
 import { getCachedRepositories, getRepoDataByFullName } from "@/app/actions/repositories";
@@ -45,17 +45,19 @@ export default async function AgentPage({
 
     const initialSkills = await getSkills();
     const initialTools = await getTools();
+    const performanceSummaries = await getAgentPerformanceSummary();
 
     return (
-        <div className="max-w-7xl mx-auto px-4 py-12 md:py-20 animate-in fade-in duration-700">
-            <div className="mb-12">
-                <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4 bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/60">
-                    Agent Configuration
-                </h1>
-                <p className="text-lg text-foreground/40 max-w-2xl">
-                    Configure your AI agents&apos; personalities, skills, and tools to tailor their behavior.
-                </p>
-
+        <div className="max-w-7xl mx-auto px-4 py-8 md:py-12 animate-in fade-in duration-700">
+            <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <div>
+                    <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-3 bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/50">
+                        Agents
+                    </h1>
+                    <p className="text-base text-foreground/40 max-w-2xl font-medium">
+                        Monitor performance, configure settings, and manage personas for your AI workforce.
+                    </p>
+                </div>
             </div>
 
             <AgentPageClient
@@ -63,6 +65,7 @@ export default async function AgentPage({
                 initialSkills={initialSkills}
                 initialTools={initialTools}
                 systemPrompts={systemPrompts}
+                performanceSummaries={performanceSummaries}
             />
         </div>
     );
