@@ -51,7 +51,6 @@ describe("PromptBuilder", () => {
     beforeEach(() => {
         jest.clearAllMocks();
         (getSystempPromptFromFile as jest.Mock).mockImplementation((name: string) => {
-            if (name === "FORMAT") return Promise.resolve("Format prompt.");
             if (name === "DOCUMENTATION") return Promise.resolve("Documentation instructions with CRITICAL INSTRUCTIONS:");
             return Promise.resolve("Default prompt.");
         });
@@ -61,7 +60,6 @@ describe("PromptBuilder", () => {
         const prompt = await PromptBuilder.buildSystemPrompt(mockContext, "src/file.ts", "console.log('test')", "DOCUMENTATION");
 
         expect(prompt).toContain("You are a specialized bot.");
-        expect(prompt).toContain("Format prompt.");
         expect(prompt).toContain("Documentation instructions with CRITICAL INSTRUCTIONS:");
         expect(prompt).toContain("Available Skills:\n- Skill1: Desc1\nContent1");
         expect(prompt).toContain("Available Tools:\n- Tool1: TDesc1\nSchema: {}");
