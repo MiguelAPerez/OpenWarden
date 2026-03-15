@@ -59,36 +59,20 @@ export function useChatInteraction(
             const isPlanning = !technicalPlan && chatMessages.length < 10;
             const mode: WorkMode = isPlanning ? "PLANNER" : "CODER";
 
-            const response = await fetch("/api/chat", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    prompt: message,
-                    repoId: selectedRepoId,
-                    filePath: activeTabPath,
-                    agentId: selectedAgentId,
-                    workMode: mode,
-                    history: chatMessages
-                })
-            });
-
-            if (!response.ok) throw new Error("Failed to fetch");
-
-            const reader = response.body?.getReader();
-            if (!reader) throw new Error("No reader");
-
-            let assistantContent = "";
             const assistantMsgId = Date.now().toString();
             dispatch(addChatMessage({ id: assistantMsgId, role: "assistant", content: "" }));
 
-            const textDecoder = new TextDecoder();
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                const chunk = textDecoder.decode(value);
-                assistantContent += chunk;
-                dispatch(updateChatMessageById({ id: assistantMsgId, content: assistantContent }));
-            }
+            const { streamChatResponse } = await import("@/lib/chat/client-utils");
+            const assistantContent = await streamChatResponse({
+                prompt: message,
+                repoId: selectedRepoId,
+                filePath: activeTabPath,
+                agentId: selectedAgentId,
+                workMode: mode,
+                history: chatMessages
+            }, (chunk) => {
+                dispatch(updateChatMessageById({ id: assistantMsgId, content: chunk, append: true })); 
+            });
 
             // After streaming, parse the final content for plans or suggestions
             if (isPlanning) {
@@ -140,32 +124,15 @@ export function useChatInteraction(
 
                 const stepPrompt = `Plan Step: ${step.action} ${step.file}\nRationale: ${step.rationale}\n\nPlease implement this change now according to the technical plan. Provide the FULL FILE content.`;
                 
-                const response = await fetch("/api/chat", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        prompt: stepPrompt,
-                        repoId: selectedRepoId,
-                        filePath: step.file,
-                        agentId: selectedAgentId,
-                        workMode: "CODER",
-                        history: chatMessages
-                    })
-                });
-
-                if (!response.ok) throw new Error("Failed to fetch");
-
-                const reader = response.body?.getReader();
-                if (!reader) throw new Error("No reader");
-
-                let assistantContent = "";
-                const textDecoder = new TextDecoder();
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    const chunk = textDecoder.decode(value);
-                    assistantContent += chunk;
-                }
+                const { streamChatResponse } = await import("@/lib/chat/client-utils");
+                const assistantContent = await streamChatResponse({
+                    prompt: stepPrompt,
+                    repoId: selectedRepoId,
+                    filePath: step.file,
+                    agentId: selectedAgentId,
+                    workMode: "CODER",
+                    history: chatMessages
+                }, () => {}); // No partial UI update for each chunk in plan execution for now
 
                 const { parseDiffs } = await import("@/lib/chat/utils");
                 const { suggestion } = parseDiffs(assistantContent, step.file, {});

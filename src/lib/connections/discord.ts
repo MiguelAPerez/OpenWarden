@@ -1,6 +1,5 @@
 import { Client, GatewayIntentBits, Message } from "discord.js";
 import { ChatService } from "@/lib/chat/service";
-import { chatWithAgentInternal } from "@/app/actions/chat";
 import { ChatResponse } from "@/lib/chat/types";
 import { db } from "@/../db";
 import { chats } from "@/../db/schema";
@@ -161,15 +160,16 @@ export class DiscordBot {
                 const startTime = Date.now();
                 let response: ChatResponse;
                 try {
-                    response = await chatWithAgentInternal(
+                    const { InferenceService } = await import("@/lib/chat/inference-service");
+                    response = await InferenceService.runInference(
+                        this.userId,
+                        null,
                         agentId,
                         message.content,
-                        this.userId,
+                        "DISCORD",
                         chatMessages,
                         null,
-                        null,
-                        null,
-                        message.channelId,
+                        null
                     );
                 } finally {
                     if (typingInterval) clearInterval(typingInterval);

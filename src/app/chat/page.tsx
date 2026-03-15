@@ -133,37 +133,19 @@ export default function UnifiedChatPage() {
                 body: JSON.stringify({ role: "user", content })
             });
 
-            // Trigger actual chat inference (we need a server action or API for this)
-            // For now, let's use the existing chat API which returns a stream
-            console.log("Sending message to chat", content);
-            const response = await fetch("/api/chat", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    prompt: content,
-                    repoId: null,
-                    agentId: currentAgentId || "default",
-                    history: messages.map(m => ({ role: m.role, content: m.content }))
-                })
-            });
-
-            // Handle streaming response
-            const reader = response.body?.getReader();
-            if (!reader) return;
-
-            let assistantContent = "";
             const assistantMsgId = (Date.now() + 1).toString();
-
             // Add empty assistant message to start streaming into it
             setMessages(prev => [...prev, { id: assistantMsgId, role: "assistant", content: "" }]);
 
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                const chunk = new TextDecoder().decode(value);
-                assistantContent += chunk;
-                setMessages(prev => prev.map(m => m.id === assistantMsgId ? { ...m, content: assistantContent } : m));
-            }
+            const { streamChatResponse } = await import("@/lib/chat/client-utils");
+            const assistantContent = await streamChatResponse({
+                prompt: content,
+                repoId: null,
+                agentId: currentAgentId || "default",
+                history: messages.map(m => ({ role: m.role, content: m.content }))
+            }, (chunk) => {
+                setMessages(prev => prev.map(m => m.id === assistantMsgId ? { ...m, content: m.content + chunk } : m));
+            });
 
             // Save assistant message to DB after stream finish
             await fetch(`/api/chats/${chatId}/messages`, {
