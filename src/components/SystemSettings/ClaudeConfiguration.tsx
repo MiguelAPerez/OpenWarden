@@ -113,7 +113,7 @@ export default function ClaudeConfiguration() {
 
     const handleClear = async () => {
         if (!confirm("Are you sure you want to clear your Claude configuration? This will delete your API key and synced models.")) return;
-        
+
         try {
             await deleteAnthropicConfig();
             setApiKey("");
@@ -132,7 +132,7 @@ export default function ClaudeConfiguration() {
             <div className="flex justify-between items-start mb-2">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-purple-500/10 rounded-lg">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-purple-500"><path d="M12 2v8"/><path d="m4.93 4.93 5.66 5.66"/><path d="M2 12h8"/><path d="m4.93 19.07 5.66-5.66"/><path d="M12 22v-8"/><path d="m19.07 19.07-5.66-5.66"/><path d="M22 12h-8"/><path d="m19.07 4.93-5.66 5.66"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-purple-500"><path d="M12 2v8" /><path d="m4.93 4.93 5.66 5.66" /><path d="M2 12h8" /><path d="m4.93 19.07 5.66-5.66" /><path d="M12 22v-8" /><path d="m19.07 19.07-5.66-5.66" /><path d="M22 12h-8" /><path d="m19.07 4.93-5.66 5.66" /></svg>
                     </div>
                     <h2 className="text-lg font-semibold">Claude Configuration</h2>
                 </div>
@@ -206,8 +206,8 @@ export default function ClaudeConfiguration() {
                         </div>
                     </div>
                 )}
- 
-                <div className="pt-4 border-t border-border flex justify-between items-center">
+
+                <div className="pt-4 border-t border-border flex justify-end gap-3">
                     <button
                         type="button"
                         onClick={handleClear}
@@ -225,7 +225,7 @@ export default function ClaudeConfiguration() {
                         >
                             {isTesting ? "Testing..." : "Test Connection"}
                         </button>
- 
+
                         <button
                             type="button"
                             onClick={handleSync}
@@ -234,7 +234,7 @@ export default function ClaudeConfiguration() {
                         >
                             {isSyncing ? "Syncing..." : "Sync Models"}
                         </button>
- 
+
                         <button
                             type="submit"
                             disabled={isSaving || isLoading}

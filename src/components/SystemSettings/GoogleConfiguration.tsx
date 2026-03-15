@@ -113,7 +113,7 @@ export default function GoogleConfiguration() {
 
     const handleClear = async () => {
         if (!confirm("Are you sure you want to clear your Gemini configuration? This will delete your API key and synced models.")) return;
-        
+
         try {
             await deleteGoogleConfig();
             setApiKey("");
@@ -208,8 +208,8 @@ export default function GoogleConfiguration() {
                         </div>
                     </div>
                 )}
- 
-                <div className="pt-4 border-t border-border flex justify-between items-center">
+
+                <div className="pt-4 border-t border-border flex justify-end gap-3">
                     <button
                         type="button"
                         onClick={handleClear}
@@ -227,7 +227,7 @@ export default function GoogleConfiguration() {
                         >
                             {isTesting ? "Testing..." : "Test Connection"}
                         </button>
- 
+
                         <button
                             type="button"
                             onClick={handleSync}
@@ -236,7 +236,7 @@ export default function GoogleConfiguration() {
                         >
                             {isSyncing ? "Syncing..." : "Sync Models"}
                         </button>
- 
+
                         <button
                             type="submit"
                             disabled={isSaving || isLoading}
