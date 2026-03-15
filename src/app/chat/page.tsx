@@ -7,7 +7,6 @@ import ChatSidebar, { ChatThread } from "@/components/chat/ChatSidebar";
 import ChatInterface, { Message } from "@/components/chat/ChatInterface";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { clearChatMessages } from "@/app/actions/chat";
 
 export default function UnifiedChatPage() {
     const router = useRouter();
@@ -111,6 +110,7 @@ export default function UnifiedChatPage() {
                 });
                 const newChat = await res.json();
                 setActiveThreadId(newChat.id);
+                setLastLoadedThreadId(newChat.id);
                 // The actual message sending will be handled by the next useEffect trigger or manually
                 // For simplicity, let's just trigger another send
                 await sendMessageToChat(newChat.id, content);
@@ -187,13 +187,19 @@ export default function UnifiedChatPage() {
     };
 
 
-    const handleClearMessages = async () => {
-        if (!activeThreadId) return;
+    const handleDeleteChat = async (id: string) => {
         try {
-            await clearChatMessages(activeThreadId);
-            setMessages([]);
+            await fetch(`/api/chats/${id}`, {
+                method: "DELETE"
+            });
+            if (activeThreadId === id) {
+                setActiveThreadId(undefined);
+                setMessages([]);
+                setCurrentAgentId(undefined);
+            }
+            fetchThreads(); // Refresh list
         } catch (err) {
-            console.error("Failed to clear messages:", err);
+            console.error("Failed to delete chat:", err);
         }
     };
 
@@ -206,6 +212,7 @@ export default function UnifiedChatPage() {
                     threads={threads}
                     activeThreadId={activeThreadId}
                     onThreadSelect={setActiveThreadId}
+                    onThreadDelete={handleDeleteChat}
                     onNewChat={handleNewChat}
                 />
             </div>
@@ -221,7 +228,6 @@ export default function UnifiedChatPage() {
                     currentAgentId={currentAgentId}
                     onAgentSelect={setCurrentAgentId}
                     onSetDefaultAgent={handleSetDefaultAgent}
-                    onClear={handleClearMessages}
                 />
             </div>
         </div>
