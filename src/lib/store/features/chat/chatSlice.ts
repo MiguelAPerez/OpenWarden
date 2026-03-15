@@ -76,10 +76,14 @@ export const chatSlice = createSlice({
                 state.chatMessages[action.payload.index].content = action.payload.content;
             }
         },
-        updateChatMessageById: (state, action: PayloadAction<{ id: string; content: string }>) => {
+        updateChatMessageById: (state, action: PayloadAction<{ id: string; content: string; append?: boolean }>) => {
             const msg = state.chatMessages.find(m => m.id === action.payload.id);
             if (msg) {
-                msg.content = action.payload.content;
+                if (action.payload.append) {
+                    msg.content += action.payload.content;
+                } else {
+                    msg.content = action.payload.content;
+                }
             }
         },
         clearChat: (state) => {

@@ -63,6 +63,7 @@ export class OllamaClient implements ChatClient {
         });
 
         try {
+            console.log(messages);
             const response = await fetch(`${this.config.url}/api/chat`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },

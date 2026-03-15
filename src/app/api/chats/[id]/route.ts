@@ -36,3 +36,28 @@ export async function PATCH(
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }
+
+export async function DELETE(
+    req: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    try {
+        const { id } = await params;
+        
+        await db.delete(chats)
+            .where(and(
+                eq(chats.id, id),
+                eq(chats.userId, session.user.id)
+            ));
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error("DELETE /api/chats/[id] error:", error);
+        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    }
+}

@@ -1,6 +1,5 @@
 import { Client, GatewayIntentBits, Message } from "discord.js";
 import { ChatService } from "@/lib/chat/service";
-import { chatWithAgentInternal } from "@/app/actions/chat";
 import { ChatResponse } from "@/lib/chat/types";
 import { db } from "@/../db";
 import { chats } from "@/../db/schema";
@@ -141,9 +140,11 @@ export class DiscordBot {
                     externalId: message.id,
                 });
 
-                // Get history for context (including the message we just saved)
+                // Get history for context (excluding the message we just saved if we are passing it as prompt)
                 const history = await ChatService.getChatHistory(chat.id);
-                const chatMessages = history.map(h => ({ role: h.role as "user" | "assistant" | "system", content: h.content }));
+                const chatMessages = history
+                    .filter(h => h.externalId !== message.id)
+                    .map(h => ({ role: h.role as "user" | "assistant" | "system", content: h.content }));
 
                 // Trigger agent inference with persistent typing indicator
                 let typingInterval: NodeJS.Timeout | null = null;
@@ -161,15 +162,16 @@ export class DiscordBot {
                 const startTime = Date.now();
                 let response: ChatResponse;
                 try {
-                    response = await chatWithAgentInternal(
+                    const { InferenceService } = await import("@/lib/chat/inference-service");
+                    response = await InferenceService.runInference(
+                        this.userId,
+                        null,
                         agentId,
                         message.content,
-                        this.userId,
+                        "DISCORD",
                         chatMessages,
                         null,
-                        null,
-                        null,
-                        message.channelId,
+                        null
                     );
                 } finally {
                     if (typingInterval) clearInterval(typingInterval);

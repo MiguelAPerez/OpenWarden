@@ -33,42 +33,26 @@ export default function ChatPanel({ repo, filePath, onSelectFile, agents }: Chat
         setIsLoading(true);
 
         try {
-            const response = await fetch("/api/chat", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    prompt: userMessage,
-                    repoId: repo.id,
-                    filePath: filePath,
-                    agentId: selectedAgentId || "default",
-                    workMode: "DOCUMENTATION",
-                    history: messages.map(m => ({ role: m.role === "agent" ? "assistant" : "user", content: m.content }))
-                })
-            });
-
-            if (!response.ok) throw new Error("Failed to fetch");
-
-            const reader = response.body?.getReader();
-            if (!reader) throw new Error("No reader");
-
-            let assistantContent = "";
-            const assistantMsgIndex = messages.length + 1; // +1 because we already added user message
+            const { streamChatResponse } = await import("@/lib/chat/client-utils");
             
             setMessages(prev => [...prev, { role: "agent", content: "" }]);
+            const assistantMsgIndex = messages.length + 1;
 
-            const textDecoder = new TextDecoder();
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                const chunk = textDecoder.decode(value);
-                assistantContent += chunk;
+            const assistantContent = await streamChatResponse({
+                prompt: userMessage,
+                repoId: repo.id,
+                filePath: filePath,
+                agentId: selectedAgentId || "default",
+                workMode: "DOCUMENTATION",
+                history: messages.map(m => ({ role: m.role === "agent" ? "assistant" : "user", content: m.content }))
+            }, (chunk) => {
                 setMessages(prev => {
                     const next = [...prev];
-                    next[assistantMsgIndex] = { role: "agent", content: assistantContent };
+                    const currentContent = next[assistantMsgIndex].content;
+                    next[assistantMsgIndex] = { role: "agent", content: currentContent + chunk };
                     return next;
                 });
-            }
+            });
 
             // After streaming, check for navigation suggestions in the final content
             const jsonMatch = assistantContent.match(/\{[\s\S]*\}/);

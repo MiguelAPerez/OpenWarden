@@ -7,7 +7,6 @@ import ChatSidebar, { ChatThread } from "@/components/chat/ChatSidebar";
 import ChatInterface, { Message } from "@/components/chat/ChatInterface";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { clearChatMessages } from "@/app/actions/chat";
 
 export default function UnifiedChatPage() {
     const router = useRouter();
@@ -75,13 +74,17 @@ export default function UnifiedChatPage() {
         }
     }, [session, sessionContext?.status, router, fetchThreads, fetchAgents]);
 
+    const [lastLoadedThreadId, setLastLoadedThreadId] = useState<string | undefined>();
+
     useEffect(() => {
         if (activeThreadId) {
-            // Only fetch messages if we don't already have them for this thread
-            // This prevents overwriting the optimistic state on a newly created chat
-            if (messages.length === 0) {
+            // Only fetch if the thread ID actually changed to avoid cycles
+            if (activeThreadId !== lastLoadedThreadId) {
+                setMessages([]); // Clear stale messages immediately
                 fetchMessages(activeThreadId);
+                setLastLoadedThreadId(activeThreadId);
             }
+            
             const thread = threads.find(t => t.id === activeThreadId);
             if (thread) {
                 setCurrentAgentId(thread.agentId);
@@ -89,8 +92,9 @@ export default function UnifiedChatPage() {
         } else {
             setMessages([]);
             setCurrentAgentId(undefined);
+            setLastLoadedThreadId(undefined);
         }
-    }, [activeThreadId, threads, messages.length, fetchMessages]);
+    }, [activeThreadId, threads, fetchMessages, lastLoadedThreadId]);
 
     const handleSendMessage = async (content: string) => {
         if (!activeThreadId) {
@@ -106,6 +110,7 @@ export default function UnifiedChatPage() {
                 });
                 const newChat = await res.json();
                 setActiveThreadId(newChat.id);
+                setLastLoadedThreadId(newChat.id);
                 // The actual message sending will be handled by the next useEffect trigger or manually
                 // For simplicity, let's just trigger another send
                 await sendMessageToChat(newChat.id, content);
@@ -133,37 +138,19 @@ export default function UnifiedChatPage() {
                 body: JSON.stringify({ role: "user", content })
             });
 
-            // Trigger actual chat inference (we need a server action or API for this)
-            // For now, let's use the existing chat API which returns a stream
-            console.log("Sending message to chat", content);
-            const response = await fetch("/api/chat", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    prompt: content,
-                    repoId: null,
-                    agentId: currentAgentId || "default",
-                    history: messages.map(m => ({ role: m.role, content: m.content }))
-                })
-            });
-
-            // Handle streaming response
-            const reader = response.body?.getReader();
-            if (!reader) return;
-
-            let assistantContent = "";
             const assistantMsgId = (Date.now() + 1).toString();
-
             // Add empty assistant message to start streaming into it
             setMessages(prev => [...prev, { id: assistantMsgId, role: "assistant", content: "" }]);
 
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                const chunk = new TextDecoder().decode(value);
-                assistantContent += chunk;
-                setMessages(prev => prev.map(m => m.id === assistantMsgId ? { ...m, content: assistantContent } : m));
-            }
+            const { streamChatResponse } = await import("@/lib/chat/client-utils");
+            const assistantContent = await streamChatResponse({
+                prompt: content,
+                repoId: null,
+                agentId: currentAgentId || "default",
+                history: messages.map(m => ({ role: m.role, content: m.content }))
+            }, (chunk) => {
+                setMessages(prev => prev.map(m => m.id === assistantMsgId ? { ...m, content: m.content + chunk } : m));
+            });
 
             // Save assistant message to DB after stream finish
             await fetch(`/api/chats/${chatId}/messages`, {
@@ -200,13 +187,19 @@ export default function UnifiedChatPage() {
     };
 
 
-    const handleClearMessages = async () => {
-        if (!activeThreadId) return;
+    const handleDeleteChat = async (id: string) => {
         try {
-            await clearChatMessages(activeThreadId);
-            setMessages([]);
+            await fetch(`/api/chats/${id}`, {
+                method: "DELETE"
+            });
+            if (activeThreadId === id) {
+                setActiveThreadId(undefined);
+                setMessages([]);
+                setCurrentAgentId(undefined);
+            }
+            fetchThreads(); // Refresh list
         } catch (err) {
-            console.error("Failed to clear messages:", err);
+            console.error("Failed to delete chat:", err);
         }
     };
 
@@ -219,6 +212,7 @@ export default function UnifiedChatPage() {
                     threads={threads}
                     activeThreadId={activeThreadId}
                     onThreadSelect={setActiveThreadId}
+                    onThreadDelete={handleDeleteChat}
                     onNewChat={handleNewChat}
                 />
             </div>
@@ -234,7 +228,6 @@ export default function UnifiedChatPage() {
                     currentAgentId={currentAgentId}
                     onAgentSelect={setCurrentAgentId}
                     onSetDefaultAgent={handleSetDefaultAgent}
-                    onClear={handleClearMessages}
                 />
             </div>
         </div>

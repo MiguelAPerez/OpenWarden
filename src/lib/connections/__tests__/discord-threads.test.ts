@@ -1,6 +1,6 @@
 import { DiscordBot } from "../discord";
 import { ChatService } from "@/lib/chat/service";
-import { chatWithAgentInternal } from "@/app/actions/chat";
+import { InferenceService } from "@/lib/chat/inference-service";
 import { Message } from "discord.js";
 
 jest.mock("@/auth", () => ({
@@ -19,7 +19,7 @@ jest.mock("discord.js", () => ({
     TextChannel: class {},
 }));
 jest.mock("@/lib/chat/service");
-jest.mock("@/app/actions/chat");
+jest.mock("@/lib/chat/inference-service");
 jest.mock("@/../db", () => ({
     db: {
         query: {
@@ -95,7 +95,7 @@ describe("DiscordBot Thread Tracking", () => {
         });
 
         (ChatService.getChatHistory as jest.Mock).mockResolvedValue([]);
-        (chatWithAgentInternal as jest.Mock).mockResolvedValue({ message: "response" });
+        (InferenceService.runInference as jest.Mock).mockResolvedValue({ message: "response" });
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const handleMessage = (bot as any).handleMessage.bind(bot);
@@ -127,7 +127,7 @@ describe("DiscordBot Thread Tracking", () => {
         });
 
         (ChatService.getChatHistory as jest.Mock).mockResolvedValue([]);
-        (chatWithAgentInternal as jest.Mock).mockResolvedValue({ message: "response" });
+        (InferenceService.runInference as jest.Mock).mockResolvedValue({ message: "response" });
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const handleMessage = (bot as any).handleMessage.bind(bot);

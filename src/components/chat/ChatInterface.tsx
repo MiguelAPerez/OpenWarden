@@ -23,7 +23,6 @@ interface ChatInterfaceProps {
     onAgentSelect?: (agentId: string) => void;
     onSetDefaultAgent?: (agentId: string) => void;
     onSetGlobalDefaultAgent?: (agentId: string) => void;
-    onClear?: () => void;
 }
 
 export default function ChatInterface({ 
@@ -36,8 +35,7 @@ export default function ChatInterface({
     currentAgentId,
     onAgentSelect,
     onSetDefaultAgent,
-    onSetGlobalDefaultAgent,
-    onClear
+    onSetGlobalDefaultAgent
 }: ChatInterfaceProps) {
     return (
         <div className="flex flex-col h-full bg-background relative overflow-hidden">
@@ -49,7 +47,6 @@ export default function ChatInterface({
                 onAgentSelect={onAgentSelect}
                 onSetDefaultAgent={onSetDefaultAgent}
                 onSetGlobalDefaultAgent={onSetGlobalDefaultAgent}
-                onClear={onClear}
                 isLoading={isLoading}
             />
 

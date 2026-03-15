@@ -16,10 +16,11 @@ interface ChatSidebarProps {
     threads: ChatThread[];
     activeThreadId?: string;
     onThreadSelect: (id: string) => void;
+    onThreadDelete: (id: string) => void;
     onNewChat: () => void;
 }
 
-export default function ChatSidebar({ threads, activeThreadId, onThreadSelect, onNewChat }: ChatSidebarProps) {
+export default function ChatSidebar({ threads, activeThreadId, onThreadSelect, onThreadDelete, onNewChat }: ChatSidebarProps) {
     return (
         <div className="flex flex-col h-full bg-foreground/[0.02] border-r border-border/50">
             <div className="p-4 border-b border-border/50">
@@ -36,10 +37,17 @@ export default function ChatSidebar({ threads, activeThreadId, onThreadSelect, o
 
             <div className="flex-1 overflow-y-auto p-2 space-y-1">
                 {threads.map((thread) => (
-                    <button
+                    <div
                         key={thread.id}
                         onClick={() => onThreadSelect(thread.id)}
-                        className={`w-full text-left p-3 rounded-xl transition-all group ${
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                onThreadSelect(thread.id);
+                            }
+                        }}
+                        className={`w-full text-left p-3 rounded-xl transition-all group cursor-pointer ${
                             activeThreadId === thread.id 
                                 ? "bg-foreground/10 ring-1 ring-foreground/20 shadow-sm" 
                                 : "hover:bg-foreground/5"
@@ -72,8 +80,23 @@ export default function ChatSidebar({ threads, activeThreadId, onThreadSelect, o
                                     {thread.lastMessage || "No messages yet"}
                                 </p>
                             </div>
+                            
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (confirm("Are you sure you want to delete this conversation?")) {
+                                        onThreadDelete(thread.id);
+                                    }
+                                }}
+                                className="opacity-0 group-hover:opacity-100 p-2 text-foreground/30 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                                title="Delete Chat"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
                         </div>
-                    </button>
+                    </div>
                 ))}
                 {threads.length === 0 && (
                     <div className="p-4 text-center text-sm text-foreground/40 italic">
