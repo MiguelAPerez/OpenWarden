@@ -75,13 +75,17 @@ export default function UnifiedChatPage() {
         }
     }, [session, sessionContext?.status, router, fetchThreads, fetchAgents]);
 
+    const [lastLoadedThreadId, setLastLoadedThreadId] = useState<string | undefined>();
+
     useEffect(() => {
         if (activeThreadId) {
-            // Only fetch messages if we don't already have them for this thread
-            // This prevents overwriting the optimistic state on a newly created chat
-            if (messages.length === 0) {
+            // Only fetch if the thread ID actually changed to avoid cycles
+            if (activeThreadId !== lastLoadedThreadId) {
+                setMessages([]); // Clear stale messages immediately
                 fetchMessages(activeThreadId);
+                setLastLoadedThreadId(activeThreadId);
             }
+            
             const thread = threads.find(t => t.id === activeThreadId);
             if (thread) {
                 setCurrentAgentId(thread.agentId);
@@ -89,8 +93,9 @@ export default function UnifiedChatPage() {
         } else {
             setMessages([]);
             setCurrentAgentId(undefined);
+            setLastLoadedThreadId(undefined);
         }
-    }, [activeThreadId, threads, messages.length, fetchMessages]);
+    }, [activeThreadId, threads, fetchMessages, lastLoadedThreadId]);
 
     const handleSendMessage = async (content: string) => {
         if (!activeThreadId) {
