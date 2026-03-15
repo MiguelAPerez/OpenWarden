@@ -44,6 +44,7 @@ export class OllamaClient implements ChatClient {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
+        let yieldedUsage = false;
 
         while (true) {
             const { done, value } = await reader.read();
@@ -66,6 +67,7 @@ export class OllamaClient implements ChatClient {
                                 completionTokens: json.eval_count || 0
                             }
                         };
+                        yieldedUsage = true;
                         return;
                     }
                     if (json.message?.content) {
@@ -91,10 +93,21 @@ export class OllamaClient implements ChatClient {
                             completionTokens: json.eval_count || 0
                         }
                     };
+                    yieldedUsage = true;
                 }
             } catch {
                 // Ignore final partial parse failure
             }
+        }
+
+        // Fallback: Ensure usage is ALWAYS yielded if not already
+        if (!yieldedUsage) {
+            yield {
+                usage: {
+                    promptTokens: 0,
+                    completionTokens: 0
+                }
+            };
         }
     }
 }

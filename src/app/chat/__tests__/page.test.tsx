@@ -54,40 +54,47 @@ describe("UnifiedChatPage Regression Test", () => {
         (useRouter as jest.Mock).mockReturnValue(mockRouter);
         (useSession as jest.Mock).mockReturnValue(mockSession);
         
-        // Mock fetch
-        global.fetch = jest.fn();
+        // Mock fetch with a default implementation that returns a safe response
+        global.fetch = jest.fn(() => Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve([]),
+            body: null
+        } as Response));
     });
 
     it("should preserve optimistic messages and NOT call fetchMessages when starting a new chat", async () => {
         // 1. Mock initial loads
         (global.fetch as jest.Mock)
-            .mockImplementationOnce(() => Promise.resolve({ ok: true, json: () => Promise.resolve([]) })) // fetchThreads
-            .mockImplementationOnce(() => Promise.resolve({ ok: true, json: () => Promise.resolve([]) })); // fetchAgents
+            .mockImplementationOnce(() => Promise.resolve({ ok: true, json: () => Promise.resolve([]) })) // fetchThreads (mount)
+            .mockImplementationOnce(() => Promise.resolve({ ok: true, json: () => Promise.resolve([]) })); // fetchAgents (mount)
 
         render(<UnifiedChatPage />);
 
         // Wait for initial load
         await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
 
-        // 2. Mock new chat creation
-        (global.fetch as jest.Mock)
-            .mockImplementationOnce(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ id: "new-chat-id", title: "hello world" }) })); // createChat (POST /api/chats)
-        
-        // 3. Mock message saving
-        (global.fetch as jest.Mock)
-            .mockImplementationOnce(() => Promise.resolve({ ok: true })); // save user message (POST /api/chats/new-chat-id/messages)
+        // 2. Mock sequence for handleSendMessage:
+        //    - createChat (POST /api/chats)
+        //    - save user message (POST /api/chats/new-chat-id/messages)
+        //    - chat inference (POST /api/chat)
+        //    - save assistant message (POST /api/chats/new-chat-id/messages)
+        //    - fetchThreads (refresh sidebar)
 
-        // 4. Mock chat inference stream
         const mockStream = new ReadableStream({
             start(controller) {
                 controller.enqueue(new TextEncoder().encode("Hello! I am your assistant."));
                 controller.close();
             }
         });
-        (global.fetch as jest.Mock)
-            .mockImplementationOnce(() => Promise.resolve({ ok: true, body: mockStream })); // chat inference (POST /api/chat)
 
-        // 5. Trigger send message
+        (global.fetch as jest.Mock)
+            .mockImplementationOnce(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ id: "new-chat-id", title: "hello world" }) })) // createChat
+            .mockImplementationOnce(() => Promise.resolve({ ok: true })) // save user message
+            .mockImplementationOnce(() => Promise.resolve({ ok: true, body: mockStream })) // chat inference
+            .mockImplementationOnce(() => Promise.resolve({ ok: true })) // save assistant message
+            .mockImplementationOnce(() => Promise.resolve({ ok: true, json: () => Promise.resolve([]) })); // fetchThreads (refresh)
+
+        // 3. Trigger send message
         const sendBtn = screen.getByText("Send Message");
         fireEvent.click(sendBtn);
 
@@ -96,19 +103,19 @@ describe("UnifiedChatPage Regression Test", () => {
             expect(global.fetch).toHaveBeenCalledWith("/api/chats", expect.anything());
         });
 
-        // The critical part: 
-        // When setActiveThreadId("new-chat-id") is called, the useEffect triggers.
-        // It should NOT call fetchMessages ("/api/chats/new-chat-id/messages") because messages.length > 0 (optimistic user message).
-        
-        // Let's verify messages are shown in the UI
+        // Verify messages are shown in the UI
         await waitFor(() => {
-            expect(screen.getByTestId("messages-count")).toHaveTextContent("2"); // User + Assistant (after stream)
+            expect(screen.getByTestId("messages-count")).toHaveTextContent("2"); // User + Assistant
             expect(screen.getByTestId("message-0")).toHaveTextContent("hello world");
         });
 
-        // Verify no fetch calls to get messages were made during this process
+        // Verify no GET fetch calls to get messages were made during this process
+        // (Optimistic UI should prevent the automatic re-fetch)
         const fetchCalls = (global.fetch as jest.Mock).mock.calls;
-        const getMessagesCalls = fetchCalls.filter(call => call[0].includes("/messages") && call[1]?.method === undefined); // GET calls to /messages
+        const getMessagesCalls = fetchCalls.filter(call => 
+            call[0].includes("/messages") && 
+            (call[1] === undefined || call[1].method === "GET" || !call[1].method)
+        );
         
         expect(getMessagesCalls.length).toBe(0);
     });

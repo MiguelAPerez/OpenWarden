@@ -201,6 +201,9 @@ describe("OllamaClient", () => {
 
         const generator = client.streamChat([]);
         const result = await generator.next();
-        expect(result.done).toBe(true);
+        expect(result.value).toEqual({ usage: { promptTokens: 0, completionTokens: 0 } });
+        expect(result.done).toBe(false);
+        const secondResult = await generator.next();
+        expect(secondResult.done).toBe(true);
     });
 });

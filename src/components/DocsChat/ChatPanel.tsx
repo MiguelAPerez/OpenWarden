@@ -78,7 +78,7 @@ export default function ChatPanel({ repo, filePath, onSelectFile, agents }: Chat
                     if (parsed.redirect) {
                         onSelectFile(parsed.redirect);
                     }
-                } catch (e) { /* ignore */ }
+                } catch { /* ignore */ }
             }
 
         } catch (err) {
