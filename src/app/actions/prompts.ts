@@ -22,6 +22,42 @@ export async function getSystempPromptFromFile(name: string): Promise<string> {
     }
 }
 
+export async function getSystemPromptsFromFiles() {
+    try {
+        const files = await fs.readdir(SYSTEM_PROMPTS_DIR);
+        const prompts = await Promise.all(
+            files
+                .filter(file => file.endsWith(".md"))
+                .map(async file => {
+                    const content = await fs.readFile(path.join(SYSTEM_PROMPTS_DIR, file), "utf-8");
+                    return {
+                        name: file.replace(".md", ""),
+                        content: content
+                    };
+                })
+        );
+        return prompts;
+    } catch (error) {
+        console.error("Failed to list system prompts:", error);
+        return [];
+    }
+}
+
+export async function updateSystemPromptFile(name: string, content: string) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) throw new Error("Unauthorized");
+
+    try {
+        const filePath = path.join(SYSTEM_PROMPTS_DIR, `${name.toUpperCase()}.md`);
+        await fs.writeFile(filePath, content, "utf-8");
+        revalidatePath("/settings");
+        return { success: true };
+    } catch (error) {
+        console.error(`Failed to update prompt ${name}:`, error);
+        throw new Error(`Failed to update prompt ${name}`);
+    }
+}
+
 export async function getSystemPrompts() {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return [];
