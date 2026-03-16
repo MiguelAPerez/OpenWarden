@@ -8,10 +8,27 @@ import { authOptions } from "@/auth";
 import { revalidatePath } from "next/cache";
 
 export async function getOllamaConfig() {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return null;
+    let userId: string | undefined;
+    try {
+        const session = await getServerSession(authOptions);
+        userId = session?.user?.id;
+    } catch {
+        // Not in a request scope
+        userId = process.env.USER_ID;
+    }
 
-    const config = db.select().from(ollamaConfigurations).where(eq(ollamaConfigurations.userId, session.user.id)).get();
+    if (!userId) {
+        // Last ditch effort for scripts
+        userId = process.env.USER_ID;
+    }
+
+    if (!userId) return null;
+
+    return await getOllamaConfigInternal(userId);
+}
+
+export async function getOllamaConfigInternal(userId: string) {
+    const config = await db.select().from(ollamaConfigurations).where(eq(ollamaConfigurations.userId, userId)).get();
     return config || null;
 }
 

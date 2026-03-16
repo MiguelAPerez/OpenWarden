@@ -1,4 +1,4 @@
-import { semanticSearch } from "../../../src/app/actions/semantic-search";
+import { semanticSearchInternal } from "../../../src/app/actions/semantic-search";
 
 async function main() {
     const query = process.argv[2];
@@ -14,13 +14,13 @@ async function main() {
         // we might want to pass them via env or args.
         // For now, let's assume it's for the "current" repo if provided.
         const repoIds = process.env.REPO_IDS ? JSON.parse(process.env.REPO_IDS) : [];
-        
+
         if (repoIds.length === 0) {
             console.error("No repo IDs provided in REPO_IDS env var.");
             process.exit(1);
         }
 
-        const results = await semanticSearch({
+        const results = await semanticSearchInternal({
             repoIds,
             query,
             limit

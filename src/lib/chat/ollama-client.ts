@@ -14,7 +14,7 @@ export class OllamaClient implements ChatClient {
                     "gen_ai.system": "ollama",
                     "gen_ai.request.temperature": this.temperature / 100,
                 });
-                console.log("messages", messages);
+                // console.log("messages", messages);
                 const response = await fetch(`${this.config.url}/api/chat`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -28,6 +28,7 @@ export class OllamaClient implements ChatClient {
 
                 if (!response.ok) throw new Error(`Ollama API error: ${response.statusText}`);
                 const data = await response.json();
+                // console.log("data", data);
 
                 const usage = {
                     promptTokens: data.prompt_eval_count || 0,
@@ -63,7 +64,7 @@ export class OllamaClient implements ChatClient {
         });
 
         try {
-            console.log("messages", messages);
+            // console.log("messages", messages);
             const response = await fetch(`${this.config.url}/api/chat`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },

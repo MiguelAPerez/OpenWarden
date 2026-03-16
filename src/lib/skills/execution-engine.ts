@@ -12,6 +12,7 @@ export interface SkillExecutionResult {
     stderr: string;
     exitCode: number;
     duration: number;
+    command: string;
 }
 
 export async function executeSkill(
@@ -25,10 +26,12 @@ export async function executeSkill(
             "skill.id": skill.id,
             "skill.name": skill.name,
             "skill.runtime": skill.runtime,
-            "skill.args": JSON.stringify(args)
+            "skill.args": JSON.stringify(args),
+            "skill.user_id": skill.userId,
+            "skill.repo_ids": env.REPO_IDS
         });
 
-        const skillPath = skill.isManaged 
+        const skillPath = skill.isManaged
             ? path.join(process.cwd(), "data", "system", "skills", skill.id)
             : path.join(process.cwd(), "data", skill.userId, "skills", skill.id);
 
@@ -41,15 +44,15 @@ export async function executeSkill(
 
         const scriptPathHost = path.join(skillPath, skill.scriptFile);
         const scriptPathContainer = path.join("/workspace", skill.scriptFile);
-        
+
         let command = "";
         const escapedArgs = args.map(a => `"${a.replace(/"/g, '\\"')}"`).join(" ");
-        
+
         const getBaseCommand = (scriptPath: string) => {
             if (skill.scriptFile!.endsWith(".py")) {
                 return `python3 "${scriptPath}" ${escapedArgs}`;
             } else if (skill.scriptFile!.endsWith(".ts") || skill.scriptFile!.endsWith(".js")) {
-                const runner = skill.scriptFile!.endsWith(".ts") ? "npx ts-node" : "node";
+                const runner = skill.scriptFile!.endsWith(".ts") ? "npx tsx" : "node";
                 return `${runner} "${scriptPath}" ${escapedArgs}`;
             } else if (skill.scriptFile!.endsWith(".php")) {
                 return `php "${scriptPath}" ${escapedArgs}`;
@@ -75,7 +78,7 @@ export async function executeSkill(
             const contextEnv: Record<string, string> = {
                 ...process.env,
                 ...env,
-                USER_ID: skill.userId,
+                USER_ID: (skill.userId && skill.userId !== 'system') ? skill.userId : (env.USER_ID || skill.userId),
                 REPO_IDS: env.REPO_IDS || "[]",
             };
 
@@ -94,20 +97,23 @@ export async function executeSkill(
                 const containerCommand = getBaseCommand(scriptPathContainer);
                 command = `docker run --rm -v "${skillPath}:/workspace" -w /workspace ${envFlags} ${image} sh -c '${containerCommand}'`;
             } else {
+
+
                 // Local execution installs requirements on first run if needed
                 if (skill.requirementsFile) {
-                    const depSpan = tracer.startSpan("skill.install_dependencies");
-                    try {
-                        if (skill.requirementsFile === "env-requirements.txt") {
-                            await execAsync(`pip install -r "${path.join(skillPath, skill.requirementsFile)}"`);
-                        } else if (skill.requirementsFile === "package.json") {
-                            await execAsync(`npm install --prefix "${skillPath}"`);
-                        }
-                        depSpan.end();
-                    } catch (depError) {
-                        depSpan.setStatus({ code: SpanStatusCode.ERROR, message: String(depError) });
-                        depSpan.end();
-                    }
+
+                    // const depSpan = tracer.startSpan("skill.install_dependencies");
+                    // try {
+                    //     if (skill.requirementsFile === "env-requirements.txt") {
+                    //         await execAsync(`pip install -r "${path.join(skillPath, skill.requirementsFile)}"`);
+                    //     } else if (skill.requirementsFile === "package.json") {
+                    //         await execAsync(`npm install --prefix "${skillPath}"`);
+                    //     }
+                    //     depSpan.end();
+                    // } catch (depError) {
+                    //     depSpan.setStatus({ code: SpanStatusCode.ERROR, message: String(depError) });
+                    //     depSpan.end();
+                    // }
                 }
                 command = localCommand;
             }
@@ -131,14 +137,15 @@ export async function executeSkill(
                 stderr,
                 exitCode: 0,
                 duration,
+                command
             };
         } catch (error: unknown) {
             const duration = Date.now() - startTime;
             const err = error as { stdout?: string; stderr?: string; message?: string; code?: number | string; signal?: string };
-            
-            span.setStatus({ 
-                code: SpanStatusCode.ERROR, 
-                message: err.message || String(error) 
+
+            span.setStatus({
+                code: SpanStatusCode.ERROR,
+                message: err.message || String(error)
             });
             span.setAttributes({
                 "skill.duration": duration,
@@ -151,6 +158,7 @@ export async function executeSkill(
                 stderr: err.stderr || err.message || String(error),
                 exitCode: typeof err.code === 'number' ? err.code : 1,
                 duration,
+                command
             };
         } finally {
             span.end();

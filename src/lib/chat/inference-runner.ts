@@ -35,7 +35,7 @@ export class InferenceRunner {
                 let currentFilePath = initialFilePath;
                 let currentFileContent = initialFileContent;
                 let currentRedirect = initialFilePath;
-                
+
                 const maxSteps = workMode === "DOCUMENTATION" ? 3 : 2;
                 const totalUsage: Usage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
 
@@ -100,8 +100,8 @@ export class InferenceRunner {
                                 if (skill) {
                                     const args = Array.isArray(parsed.args) ? parsed.args : [String(parsed.args || "")];
                                     try {
-                                        const actualRepoIds = this.repoId === "NONE" 
-                                            ? [] 
+                                        const actualRepoIds = this.repoId === "NONE"
+                                            ? []
                                             : (this.repoId ? [this.repoId] : (await (async () => {
                                                 const { db } = await import("@/../db");
                                                 const { repositories } = await import("@/../db/schema");
@@ -114,11 +114,13 @@ export class InferenceRunner {
                                             })()));
 
                                         const result = await executeSkill(skill, args, {
-                                            REPO_IDS: JSON.stringify(actualRepoIds)
+                                            REPO_IDS: JSON.stringify(actualRepoIds),
+                                            USER_ID: this.userId
                                         });
 
                                         let observation = `Observation: Executed skill "${skill.id}" with args: ${args.join(", ")}.\n\n`;
                                         observation += `Exit Code: ${result.exitCode}\n`;
+                                        observation += `Command: ${result.command}\n`;
                                         if (result.stdout) observation += `Output:\n${result.stdout}\n`;
                                         if (result.stderr) observation += `Error Output:\n${result.stderr}\n`;
 

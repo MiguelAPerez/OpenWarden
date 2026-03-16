@@ -12,11 +12,11 @@ async function getSkillFromDir(dirPath: string, id: string, isManaged: boolean, 
     try {
         const skillMdPath = path.join(dirPath, "SKILL.md");
         const content = await fs.readFile(skillMdPath, "utf-8");
-        
+
         // Simple metadata extraction
         const nameMatch = content.match(/^#\s+(.+)$/m);
         const name = nameMatch ? nameMatch[1].trim() : id;
-        
+
         const descriptionMatch = content.match(/^##\s+Description\s*\n+([\s\S]+?)(?:\n+##|$)/m);
         const description = descriptionMatch ? descriptionMatch[1].trim() : "No description provided.";
 
@@ -33,7 +33,9 @@ async function getSkillFromDir(dirPath: string, id: string, isManaged: boolean, 
             const configData = JSON.parse(await fs.readFile(configPath, "utf-8"));
             if (configData.runtime) runtime = configData.runtime;
             if (configData.envVars) envVars = configData.envVars;
-        } catch { /* ignore */ }
+        } catch {
+            // No config file found in this directory
+        }
 
         let scriptContent: string | null = null;
         if (scriptFile) {

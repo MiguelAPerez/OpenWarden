@@ -151,7 +151,12 @@ export class InferenceService {
 
                                 const actionResult = await InferenceService.handleAction(assistantContent, step, maxSteps, repoId, userId, contextData.enabledSkills);
                                 if (actionResult) {
-                                    messages.push({ role: "assistant", content: assistantContent });
+                                    // Strip the model's own <think> tags from history to keep it clean.
+                                    // streamStepContent already wrapped the full chunk in <think> for the UI.
+                                    const cleanContent = assistantContent
+                                        .replace(/<think>[\s\S]*?<\/think>\s*/gi, '')
+                                        .trim();
+                                    messages.push({ role: "assistant", content: cleanContent });
                                     messages.push({ role: "user", content: actionResult.observation });
                                     if (actionResult.newPath) {
                                         currentFilePath = actionResult.newPath;
@@ -208,7 +213,10 @@ export class InferenceService {
             try {
                 if (step >= maxSteps - 1) return null;
 
-                const jsonMatch = content.match(/\{[\s\S]*\}/);
+                // Strip model-native <think> blocks before JSON parsing so they don't interfere
+                const cleanedContent = content.replace(/<think>[\s\S]*?<\/think>\s*/gi, '').trim();
+
+                const jsonMatch = cleanedContent.match(/\{[\s\S]*\}/);
                 let parsed = null;
                 if (jsonMatch) {
                     try { parsed = JSON.parse(jsonMatch[0]); } catch { /* ignore */ }
@@ -241,14 +249,14 @@ export class InferenceService {
                     if (skill) {
                         const args = parsed.args || [];
                         const argsArray = Array.isArray(args) ? args : [String(args)];
-                        
+
                         span.setAttributes({ "skill.id": skillId, "skill.args": JSON.stringify(argsArray) });
-                        
+
                         try {
                             // Fetch repos once – derive IDs and display names from the same result
                             type RepoRow = { id: string; name: string };
                             let repoRows: RepoRow[] = [];
-                            
+
                             if (repoId !== "NONE") {
                                 const { db } = await import("@/../db");
                                 const { repositories } = await import("@/../db/schema");
@@ -274,12 +282,14 @@ export class InferenceService {
                                 : (repoId === null ? `All enabled repos: ${repoRows.map(r => r.name).join(", ")}` : repoRows.map(r => r.name).join(", "));
 
                             const result = await executeSkill(skill, argsArray, {
-                                REPO_IDS: JSON.stringify(actualRepoIds)
+                                REPO_IDS: JSON.stringify(actualRepoIds),
+                                USER_ID: userId
                             });
 
                             let observation = `Observation: Executed skill "${skillId}" with args: ${argsArray.join(", ")}.\n`;
                             observation += `Searched Repositories: ${repoContext}\n\n`;
                             observation += `Exit Code: ${result.exitCode}\n`;
+                            observation += `Command: ${result.command}\n`;
                             if (result.stdout) observation += `Output:\n${result.stdout}\n`;
                             if (result.stderr) observation += `Error Output:\n${result.stderr}\n`;
 
