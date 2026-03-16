@@ -245,8 +245,21 @@ export class InferenceService {
                         span.setAttributes({ "skill.id": skillId, "skill.args": JSON.stringify(argsArray) });
                         
                         try {
+                            const actualRepoIds = repoId === "NONE" 
+                                ? [] 
+                                : (repoId ? [repoId] : (await (async () => {
+                                    const { db } = await import("@/../db");
+                                    const { repositories } = await import("@/../db/schema");
+                                    const { eq, and } = await import("drizzle-orm");
+                                    const enabledRepos = await db.select({ id: repositories.id })
+                                        .from(repositories)
+                                        .where(and(eq(repositories.userId, userId), eq(repositories.enabled, true)))
+                                        .all();
+                                    return enabledRepos.map(r => r.id);
+                                })()));
+
                             const result = await executeSkill(skill, argsArray, {
-                                REPO_IDS: JSON.stringify(repoId ? [repoId] : [])
+                                REPO_IDS: JSON.stringify(actualRepoIds)
                             });
 
                             let observation = `Observation: Executed skill "${skillId}" with args: ${argsArray.join(", ")}.\n\n`;

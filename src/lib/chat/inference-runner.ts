@@ -60,7 +60,7 @@ export class InferenceRunner {
                             try {
                                 const { recordAgentUsage } = await import("@/app/actions/performance");
                                 await recordAgentUsage(this.contextData.agentConfig.id, usage?.promptTokens || 0, usage?.completionTokens || 0, inferenceTime);
-                            } catch (e) { /* ignore */ }
+                            } catch { /* ignore */ }
                         }
 
                         const jsonMatch = content.match(/\{[\s\S]*\}/);
@@ -88,8 +88,8 @@ export class InferenceRunner {
                                         currentFileContent = cleanedContent;
                                         currentRedirect = newPath;
                                         continue;
-                                    } catch (e) {
-                                        console.error(`Failed to navigate to ${newPath}:`, e);
+                                    } catch {
+                                        console.error(`Failed to navigate to ${newPath}`);
                                     }
                                 }
                             }
@@ -100,8 +100,21 @@ export class InferenceRunner {
                                 if (skill) {
                                     const args = Array.isArray(parsed.args) ? parsed.args : [String(parsed.args || "")];
                                     try {
+                                        const actualRepoIds = this.repoId === "NONE" 
+                                            ? [] 
+                                            : (this.repoId ? [this.repoId] : (await (async () => {
+                                                const { db } = await import("@/../db");
+                                                const { repositories } = await import("@/../db/schema");
+                                                const { eq, and } = await import("drizzle-orm");
+                                                const enabledRepos = await db.select({ id: repositories.id })
+                                                    .from(repositories)
+                                                    .where(and(eq(repositories.userId, this.userId), eq(repositories.enabled, true)))
+                                                    .all();
+                                                return enabledRepos.map(r => r.id);
+                                            })()));
+
                                         const result = await executeSkill(skill, args, {
-                                            REPO_IDS: JSON.stringify([this.repoId])
+                                            REPO_IDS: JSON.stringify(actualRepoIds)
                                         });
 
                                         let observation = `Observation: Executed skill "${skill.id}" with args: ${args.join(", ")}.\n\n`;
@@ -112,8 +125,8 @@ export class InferenceRunner {
                                         messages.push({ role: "assistant", content });
                                         messages.push({ role: "user", content: observation + "\nPlease proceed based on this." });
                                         continue;
-                                    } catch (e) {
-                                        console.error(`Failed to execute skill ${skill.id}:`, e);
+                                    } catch (skillErr) {
+                                        console.error(`Failed to execute skill ${skill.id}:`, skillErr);
                                     }
                                 }
                             }

@@ -41,6 +41,7 @@ export default function ChatInput({
                                 className="appearance-none bg-foreground/5 border border-border/50 hover:border-border transition-all rounded-full py-1.5 pl-8 pr-8 text-[10px] font-bold uppercase tracking-wider text-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/30 min-w-[120px] cursor-pointer"
                             >
                                 <option value="">Global Context</option>
+                                <option value="NONE">None (No Context)</option>
                                 {repositories.map(repo => (
                                     <option key={repo.id} value={repo.id}>
                                         {repo.fullName.split('/').pop()}

@@ -39,21 +39,28 @@ export async function executeSkill(
             throw error;
         }
 
-        const scriptPath = path.join(skillPath, skill.scriptFile);
+        const scriptPathHost = path.join(skillPath, skill.scriptFile);
+        const scriptPathContainer = path.join("/workspace", skill.scriptFile);
         
         let command = "";
         const escapedArgs = args.map(a => `"${a.replace(/"/g, '\\"')}"`).join(" ");
         
-        if (skill.scriptFile.endsWith(".py")) {
-            command = `python3 "${scriptPath}" ${escapedArgs}`;
-        } else if (skill.scriptFile.endsWith(".ts") || skill.scriptFile.endsWith(".js")) {
-            const runner = skill.scriptFile.endsWith(".ts") ? "npx ts-node" : "node";
-            command = `${runner} "${scriptPath}" ${escapedArgs}`;
-        } else if (skill.scriptFile.endsWith(".php")) {
-            command = `php "${scriptPath}" ${escapedArgs}`;
-        } else if (skill.scriptFile.endsWith(".sh")) {
-            command = `bash "${scriptPath}" ${escapedArgs}`;
-        } else {
+        const getBaseCommand = (scriptPath: string) => {
+            if (skill.scriptFile!.endsWith(".py")) {
+                return `python3 "${scriptPath}" ${escapedArgs}`;
+            } else if (skill.scriptFile!.endsWith(".ts") || skill.scriptFile!.endsWith(".js")) {
+                const runner = skill.scriptFile!.endsWith(".ts") ? "npx ts-node" : "node";
+                return `${runner} "${scriptPath}" ${escapedArgs}`;
+            } else if (skill.scriptFile!.endsWith(".php")) {
+                return `php "${scriptPath}" ${escapedArgs}`;
+            } else if (skill.scriptFile!.endsWith(".sh")) {
+                return `bash "${scriptPath}" ${escapedArgs}`;
+            }
+            return null;
+        };
+
+        const localCommand = getBaseCommand(scriptPathHost);
+        if (!localCommand) {
             const error = new Error(`Unsupported script type for skill ${skill.id}: ${skill.scriptFile}`);
             span.setStatus({ code: SpanStatusCode.ERROR, message: error.message });
             span.end();
@@ -65,21 +72,6 @@ export async function executeSkill(
         span.setAttribute("skill.timeout", timeoutMs);
 
         try {
-            if (skill.requirementsFile) {
-                const depSpan = tracer.startSpan("skill.install_dependencies");
-                try {
-                    if (skill.requirementsFile === "env-requirements.txt") {
-                        await execAsync(`pip install -r "${path.join(skillPath, skill.requirementsFile)}"`);
-                    } else if (skill.requirementsFile === "package.json") {
-                        await execAsync(`npm install --prefix "${skillPath}"`);
-                    }
-                    depSpan.end();
-                } catch (depError) {
-                    depSpan.setStatus({ code: SpanStatusCode.ERROR, message: String(depError) });
-                    depSpan.end();
-                }
-            }
-
             const contextEnv: Record<string, string> = {
                 ...process.env,
                 ...env,
@@ -87,9 +79,44 @@ export async function executeSkill(
                 REPO_IDS: env.REPO_IDS || "[]",
             };
 
+            if (skill.runtime === "docker") {
+                const envFlags = Object.entries(contextEnv)
+                    .filter(([, v]) => v !== undefined)
+                    .map(([k, v]) => `-e ${k}="${String(v).replace(/"/g, '\\"')}"`)
+                    .join(" ");
+
+                // Map language to base image
+                let image = "coding-agent-skill-base"; // Generic one or language specific
+                if (skill.scriptFile!.endsWith(".py")) image = "python:3.10-slim";
+                else if (skill.scriptFile!.endsWith(".js") || skill.scriptFile!.endsWith(".ts")) image = "node:18-slim";
+                else if (skill.scriptFile!.endsWith(".php")) image = "php:8.2-cli";
+
+                const containerCommand = getBaseCommand(scriptPathContainer);
+                command = `docker run --rm -v "${skillPath}:/workspace" -w /workspace ${envFlags} ${image} sh -c '${containerCommand}'`;
+            } else {
+                // Local execution installs requirements on first run if needed
+                if (skill.requirementsFile) {
+                    const depSpan = tracer.startSpan("skill.install_dependencies");
+                    try {
+                        if (skill.requirementsFile === "env-requirements.txt") {
+                            await execAsync(`pip install -r "${path.join(skillPath, skill.requirementsFile)}"`);
+                        } else if (skill.requirementsFile === "package.json") {
+                            await execAsync(`npm install --prefix "${skillPath}"`);
+                        }
+                        depSpan.end();
+                    } catch (depError) {
+                        depSpan.setStatus({ code: SpanStatusCode.ERROR, message: String(depError) });
+                        depSpan.end();
+                    }
+                }
+                command = localCommand;
+            }
+
             const { stdout, stderr } = await execAsync(command, {
-                env: contextEnv as NodeJS.ProcessEnv,
-                cwd: skillPath,
+                env: skill.runtime === "docker" ? undefined : contextEnv as NodeJS.ProcessEnv,
+                // Local skills run from the project root so node_modules and db paths resolve correctly.
+                // Docker skills use skillPath since the volume mount handles the workspace.
+                cwd: skill.runtime === "docker" ? skillPath : process.cwd(),
                 timeout: timeoutMs,
             });
 
