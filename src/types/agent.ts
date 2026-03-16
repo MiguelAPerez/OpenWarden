@@ -21,7 +21,9 @@ export interface Skill {
     content: string; // From SKILL.md
     isManaged: boolean;
     scriptFile: string | null;
+    scriptContent?: string | null;
     requirementsFile: string | null;
+    requirementsContent?: string | null;
     updatedAt: Date;
 }
 

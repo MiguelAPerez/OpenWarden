@@ -20,7 +20,7 @@ export async function executeSkill(
 ): Promise<SkillExecutionResult> {
     const startTime = Date.now();
     const skillPath = skill.isManaged 
-        ? path.join(process.cwd(), "system-statics", "skills", skill.id)
+        ? path.join(process.cwd(), "data", "system", "skills", skill.id)
         : path.join(process.cwd(), "data", skill.userId, "skills", skill.id);
 
     if (!skill.scriptFile) {

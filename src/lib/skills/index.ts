@@ -2,7 +2,7 @@ import fs from "fs/promises";
 import path from "path";
 import { Skill } from "@/types/agent";
 
-const SYSTEM_SKILLS_DIR = path.join(process.cwd(), "system-statics", "skills");
+const SYSTEM_SKILLS_DIR = path.join(process.cwd(), "data", "system", "skills");
 const USER_DATA_DIR = path.join(process.cwd(), "data");
 
 async function getSkillFromDir(dirPath: string, id: string, isManaged: boolean, userId: string): Promise<Skill | null> {
@@ -23,6 +23,20 @@ async function getSkillFromDir(dirPath: string, id: string, isManaged: boolean, 
 
         const stats = await fs.stat(skillMdPath);
 
+        let scriptContent: string | null = null;
+        if (scriptFile) {
+            try {
+                scriptContent = await fs.readFile(path.join(dirPath, scriptFile), "utf-8");
+            } catch { /* ignore */ }
+        }
+
+        let requirementsContent: string | null = null;
+        if (requirementsFile) {
+            try {
+                requirementsContent = await fs.readFile(path.join(dirPath, requirementsFile), "utf-8");
+            } catch { /* ignore */ }
+        }
+
         return {
             id,
             userId,
@@ -31,7 +45,9 @@ async function getSkillFromDir(dirPath: string, id: string, isManaged: boolean, 
             content,
             isManaged,
             scriptFile,
+            scriptContent,
             requirementsFile,
+            requirementsContent,
             updatedAt: stats.mtime,
         };
     } catch {

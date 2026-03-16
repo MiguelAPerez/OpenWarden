@@ -23,10 +23,10 @@ export class InferenceService {
         return tracer.startActiveSpan("inference_service.run", async (span) => {
             try {
                 const { contextData, client } = await this.prepareContext(userId, repoId, agentId, filePath, prompt, history);
-                
+
                 let currentFilePath = filePath;
                 let currentFileContent = contextData.initialFileContent || "";
-                
+
                 const lastHistoryMessage = history[history.length - 1];
                 const messages: ChatMessage[] = [
                     { role: "system", content: "" },
@@ -59,7 +59,7 @@ export class InferenceService {
                         continue;
                     }
 
-                    finalResponse = { 
+                    finalResponse = {
                         message: content,
                         redirect: currentFilePath,
                         usage: usage
@@ -92,68 +92,77 @@ export class InferenceService {
     ): Promise<ReadableStream> {
         return new ReadableStream({
             async start(controller) {
-                try {
-                    const { contextData, client } = await InferenceService.prepareContext(userId, repoId, agentId, filePath, prompt, history);
-                    
-                    let currentFilePath = filePath;
-                    let currentFileContent = contextData.initialFileContent || "";
-                    
-                    const lastHistoryMessage = history[history.length - 1];
-                    const messages: ChatMessage[] = [
-                        { role: "system", content: "" },
-                        ...(history || []),
-                    ];
+                return tracer.startActiveSpan("inference_service.stream", async (span) => {
+                    try {
+                        const { contextData, client } = await InferenceService.prepareContext(userId, repoId, agentId, filePath, prompt, history);
 
-                    if (!lastHistoryMessage || lastHistoryMessage.content !== prompt || lastHistoryMessage.role !== "user") {
-                        messages.push({ role: "user", content: prompt });
-                    }
+                        let currentFilePath = filePath;
+                        let currentFileContent = contextData.initialFileContent || "";
 
-                    const maxSteps = workMode === "DOCUMENTATION" ? 2 : 1;
+                        const lastHistoryMessage = history[history.length - 1];
+                        const messages: ChatMessage[] = [
+                            { role: "system", content: "" },
+                            ...(history || []),
+                        ];
 
-                    for (let step = 0; step < maxSteps; step++) {
-                        const systemPrompt = await PromptBuilder.buildSystemPrompt(contextData, currentFilePath, currentFileContent, workMode, sysPrompt);
-                        messages[0].content = systemPrompt;
+                        if (!lastHistoryMessage || lastHistoryMessage.content !== prompt || lastHistoryMessage.role !== "user") {
+                            messages.push({ role: "user", content: prompt });
+                        }
 
-                        let assistantContent = "";
-                        let usage: Usage | undefined;
-                        const startTime = Date.now();
+                        const maxSteps = workMode === "DOCUMENTATION" ? 2 : 1;
 
-                        const isFinalStep = step === maxSteps - 1;
-                        const iterator = client.streamChat(messages);
+                        for (let step = 0; step < maxSteps; step++) {
+                            const child_process = tracer.startSpan("inference_service.run");
+                            try {
+                                const systemPrompt = await PromptBuilder.buildSystemPrompt(contextData, currentFilePath, currentFileContent, workMode, sysPrompt);
+                                messages[0].content = systemPrompt;
 
-                        for await (const chunk of iterator) {
-                            if (typeof chunk === 'string') {
-                                assistantContent += chunk;
-                                // Only stream to controller if it's the final potential step or if no navigation is expected
-                                if (isFinalStep) {
-                                    controller.enqueue(new TextEncoder().encode(chunk));
+                                let assistantContent = "";
+                                let usage: Usage | undefined;
+                                const startTime = Date.now();
+
+                                const isFinalStep = step === maxSteps - 1;
+                                const iterator = client.streamChat(messages);
+
+                                for await (const chunk of iterator) {
+                                    if (typeof chunk === 'string') {
+                                        assistantContent += chunk;
+                                        // Only stream to controller if it's the final potential step or if no navigation is expected
+                                        if (isFinalStep) {
+                                            controller.enqueue(new TextEncoder().encode(chunk));
+                                        }
+                                    } else if (chunk.usage) {
+                                        usage = chunk.usage;
+                                    }
                                 }
-                            } else if (chunk.usage) {
-                                usage = chunk.usage;
+
+                                const duration = Date.now() - startTime;
+                                await InferenceService.recordUsage(agentId, usage, duration);
+
+                                const navigation = await InferenceService.handleNavigation(assistantContent, step, maxSteps, repoId, userId);
+                                if (navigation) {
+                                    messages.push({ role: "assistant", content: assistantContent });
+                                    messages.push({ role: "user", content: navigation.observation });
+                                    currentFilePath = navigation.newPath;
+                                    currentFileContent = navigation.newContent;
+                                    continue;
+                                }
+
+                                // If it wasn't the final step but we didn't navigate, we should stream what we have if we haven't already
+                                if (!isFinalStep) {
+                                    controller.enqueue(new TextEncoder().encode(assistantContent));
+                                }
+                            } catch (err) {
+                                console.error("Error in inference loop:", err);
+                            } finally {
+                                child_process.end();
                             }
                         }
-
-                        const duration = Date.now() - startTime;
-                        await InferenceService.recordUsage(agentId, usage, duration);
-
-                        const navigation = await InferenceService.handleNavigation(assistantContent, step, maxSteps, repoId, userId);
-                        if (navigation) {
-                            messages.push({ role: "assistant", content: assistantContent });
-                            messages.push({ role: "user", content: navigation.observation });
-                            currentFilePath = navigation.newPath;
-                            currentFileContent = navigation.newContent;
-                            continue;
-                        }
-
-                        // If it wasn't the final step but we didn't navigate, we should stream what we have if we haven't already
-                        if (!isFinalStep) {
-                            controller.enqueue(new TextEncoder().encode(assistantContent));
-                        }
+                        controller.close();
+                    } catch (e) {
+                        controller.error(e);
                     }
-                    controller.close();
-                } catch (e) {
-                    controller.error(e);
-                }
+                });
             }
         });
     }
@@ -161,12 +170,12 @@ export class InferenceService {
     private static async prepareContext(userId: string, repoId: string | null, agentId: string, filePath: string | null, prompt: string, history: ChatMessage[]) {
         const { ChatContext } = await import("./context");
         const { extractMentionedPaths } = await import("./utils");
-        
+
         const extraPaths = extractMentionedPaths(prompt + " " + (history || []).map(m => m.content).join(" "));
         const context = new ChatContext(userId, repoId, agentId, filePath, extraPaths);
         const contextData = await context.load();
         const client = ChatClientFactory.getClient(contextData);
-        
+
         return { contextData, client };
     }
 
@@ -182,29 +191,31 @@ export class InferenceService {
     }
 
     private static async handleNavigation(content: string, step: number, maxSteps: number, repoId: string | null, userId: string) {
-        if (repoId && step < maxSteps - 1) {
-            const jsonMatch = content.match(/\{[\s\S]*\}/);
-            let parsed = null;
-            if (jsonMatch) {
-                try { parsed = JSON.parse(jsonMatch[0]); } catch { /* ignore */ }
-            }
+        return tracer.startActiveSpan("inference_service.handleNavigation", async (span) => {
+            if (repoId && step < maxSteps - 1) {
+                const jsonMatch = content.match(/\{[\s\S]*\}/);
+                let parsed = null;
+                if (jsonMatch) {
+                    try { parsed = JSON.parse(jsonMatch[0]); } catch { /* ignore */ }
+                }
 
-            if (parsed && parsed.redirect) {
-                const newPath = parsed.redirect;
-                try {
-                    const newContent = await getRepoFileContentInternal(repoId, newPath, userId);
-                    const cleanedContent = newContent.replace(/^---\s*[\s\S]*?---\s*/, '');
-                    
-                    return {
-                        newPath,
-                        newContent: cleanedContent,
-                        observation: `Observation: You are now seeing the FULL content of "${newPath}".\n\nContent:\n${cleanedContent}\n\nPlease provide your final answer based on this new information.`
-                    };
-                } catch (e) {
-                    console.error(`Failed to navigate to ${newPath}:`, e);
+                if (parsed && parsed.redirect) {
+                    const newPath = parsed.redirect;
+                    try {
+                        const newContent = await getRepoFileContentInternal(repoId, newPath, userId);
+                        const cleanedContent = newContent.replace(/^---\s*[\s\S]*?---\s*/, '');
+
+                        return {
+                            newPath,
+                            newContent: cleanedContent,
+                            observation: `Observation: You are now seeing the FULL content of "${newPath}".\n\nContent:\n${cleanedContent}\n\nPlease provide your final answer based on this new information.`
+                        };
+                    } catch (e) {
+                        console.error(`Failed to navigate to ${newPath}:`, e);
+                    }
                 }
             }
-        }
-        return null;
+            return null;
+        });
     }
 }
