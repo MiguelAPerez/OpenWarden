@@ -11,9 +11,9 @@ import { getOllamaConfig } from "./ollama";
 import { isPathBlocked } from "@/lib/constants";
 
 const DATA_BASE_DIR = path.join(process.cwd(), "data");
-const CHUNK_SIZE = 1000;
-const CHUNK_OVERLAP = 200;
-const EMBEDDING_MODEL = "nomic-embed-text";
+const CHUNK_SIZE = 2000; // Take advantage of the 32k window
+const CHUNK_OVERLAP = 400;
+const EMBEDDING_MODEL = "qwen3-embedding:4b";
 
 export interface SemanticSearchOptions {
     repoIds: string[];
@@ -67,7 +67,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    model: `${EMBEDDING_MODEL}:latest`,
+                    model: EMBEDDING_MODEL,
                     prompt: text,
                 }),
             });
@@ -111,6 +111,10 @@ export async function semanticSearch(options: SemanticSearchOptions) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) throw new Error("Unauthorized");
 
+    return semanticSearchInternal(options);
+}
+
+export async function semanticSearchInternal(options: SemanticSearchOptions) {
     const { repoIds, query, limit = 20, includeExtensions, excludePatterns, extraBlocklist } = options;
     if (!query.trim()) return [];
 

@@ -8,18 +8,24 @@ export interface AgentConfig {
     systemPromptId: string | null;
     systemPrompt: string;
     temperature: number;
+    skillIds: string[]; // List of linked skill IDs (folder names)
     updatedAt: Date;
     isManaged: boolean;
 }
 
 export interface Skill {
-    id: string;
+    id: string; // Folder name (e.g., "stocks")
     userId: string;
-    agentId: string | null;
     name: string;
     description: string;
-    content: string;
-    isEnabled: boolean;
+    content: string; // From SKILL.md
+    isManaged: boolean;
+    runtime: "local" | "docker"; // "lambda" etc later
+    envVars?: Record<string, string>;
+    scriptFile: string | null;
+    scriptContent?: string | null;
+    requirementsFile: string | null;
+    requirementsContent?: string | null;
     updatedAt: Date;
 }
 

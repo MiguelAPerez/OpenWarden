@@ -4,6 +4,7 @@ export interface ChatMessage {
     id?: string;
     role: "system" | "user" | "assistant";
     content: string;
+    thinking?: string;
 }
 
 export interface ChatResponse {
@@ -21,8 +22,8 @@ export interface Usage {
 }
 
 export interface ChatClient {
-    chat(messages: ChatMessage[]): Promise<{ content: string; usage?: Usage }>;
-    streamChat(messages: ChatMessage[]): AsyncGenerator<string | { usage: Usage }>;
+    chat(messages: ChatMessage[]): Promise<{ content: string; thinking?: string; usage?: Usage }>;
+    streamChat(messages: ChatMessage[]): AsyncGenerator<string | { thinking: string } | { usage: Usage }>;
 }
 
 
@@ -54,14 +55,16 @@ export interface PendingSuggestion {
 }
 
 import { InferSelectModel } from "drizzle-orm";
-import { repositories, agentConfigurations, skills, tools, ollamaConfigurations, anthropicConfigurations, googleConfigurations } from "@/../db/schema";
+import { repositories, agentConfigurations, tools, ollamaConfigurations, anthropicConfigurations, googleConfigurations } from "@/../db/schema";
 
+import { Skill } from "@/types/agent";
+export type { Skill };
 
 export interface ContextData {
     repo?: InferSelectModel<typeof repositories>;
     agentConfig: InferSelectModel<typeof agentConfigurations>;
     agentPersonalityPrompt: string | null;
-    enabledSkills: InferSelectModel<typeof skills>[];
+    enabledSkills: Skill[];
     enabledTools: InferSelectModel<typeof tools>[];
     ollamaConfig?: InferSelectModel<typeof ollamaConfigurations>;
     anthropicConfig?: InferSelectModel<typeof anthropicConfigurations>;

@@ -1,12 +1,11 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import UnifiedChatPage from "../page";
-import { useSession } from "next-auth/react";
+import ChatPageClient from "../ChatPageClient";
 import { useRouter } from "next/navigation";
 
-// Mock next-auth
-jest.mock("next-auth/react", () => ({
-    useSession: jest.fn(),
+// Mock actions
+jest.mock("@/app/actions/config", () => ({
+    getAgentConfigs: jest.fn(() => Promise.resolve([])),
 }));
 
 // Mock next/navigation
@@ -45,14 +44,15 @@ jest.mock("@/components/chat/ChatInterface", () => ({
     ),
 }));
 
+import { Provider } from "react-redux";
+import { makeStore } from "@/lib/store/store";
+
 describe("UnifiedChatPage Regression Test", () => {
     const mockRouter = { push: jest.fn() };
-    const mockSession = { data: { user: { id: "user1" } }, status: "authenticated" };
 
     beforeEach(() => {
         jest.clearAllMocks();
         (useRouter as jest.Mock).mockReturnValue(mockRouter);
-        (useSession as jest.Mock).mockReturnValue(mockSession);
         
         // Mock fetch with a default implementation that returns a safe response
         global.fetch = jest.fn(() => Promise.resolve({
@@ -63,15 +63,19 @@ describe("UnifiedChatPage Regression Test", () => {
     });
 
     it("should preserve optimistic messages and NOT call fetchMessages when starting a new chat", async () => {
+        const store = makeStore();
         // 1. Mock initial loads
         (global.fetch as jest.Mock)
-            .mockImplementationOnce(() => Promise.resolve({ ok: true, json: () => Promise.resolve([]) })) // fetchThreads (mount)
-            .mockImplementationOnce(() => Promise.resolve({ ok: true, json: () => Promise.resolve([]) })); // fetchAgents (mount)
+            .mockImplementationOnce(() => Promise.resolve({ ok: true, json: () => Promise.resolve([]) })); // fetchRepos (mount)
 
-        render(<UnifiedChatPage />);
+        render(
+            <Provider store={store}>
+                <ChatPageClient initialThreads={[]} initialAgents={[]} />
+            </Provider>
+        );
 
-        // Wait for initial load
-        await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
+        // Wait for a tick to ensure component is ready (optional but safe)
+        await waitFor(() => expect(screen.getByTestId("interface")).toBeInTheDocument());
 
         // 2. Mock sequence for handleSendMessage:
         //    - createChat (POST /api/chats)
@@ -121,12 +125,13 @@ describe("UnifiedChatPage Regression Test", () => {
     });
 
     it("should fetch messages normally when switching to an existing thread with no messages loaded", async () => {
+        const store = makeStore();
         // 1. Mock initial loads
-        (global.fetch as jest.Mock)
-            .mockImplementationOnce(() => Promise.resolve({ ok: true, json: () => Promise.resolve([{ id: "thread1", title: "Existing Chat" }]) })) // fetchThreads
-            .mockImplementationOnce(() => Promise.resolve({ ok: true, json: () => Promise.resolve([]) })); // fetchAgents
-
-        render(<UnifiedChatPage />);
+        render(
+            <Provider store={store}>
+                <ChatPageClient initialThreads={[{ id: "thread1", title: "Existing Chat", type: "web", updatedAt: new Date(), lastMessage: "" }]} initialAgents={[]} />
+            </Provider>
+        );
 
         // 2. Mock fetch messages for thread1
         (global.fetch as jest.Mock)

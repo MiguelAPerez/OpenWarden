@@ -13,16 +13,15 @@ const tracer = trace.getTracer("api.chat.route");
  */
 export async function POST(req: NextRequest) {
     return tracer.startActiveSpan("POST", async (span) => {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            span.setAttribute("error", "Unauthorized");
-            span.setStatus({ code: SpanStatusCode.ERROR });
-            span.end();
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
-
         try {
+            const session = await getServerSession(authOptions);
+            if (!session?.user?.id) {
+                span.setAttribute("error", "Unauthorized");
+                span.setStatus({ code: SpanStatusCode.ERROR });
+                span.end();
+                return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            }
+
             const { repoId, filePath, prompt, sysPrompt, agentId, history, workMode = "GENERAL" } = await req.json();
             const userId = session.user.id;
 

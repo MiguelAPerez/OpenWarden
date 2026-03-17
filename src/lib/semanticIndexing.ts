@@ -6,10 +6,10 @@ import { indexRepositoryCore } from "@/app/actions/semantic-search";
 
 export async function semanticIndexing() {
     console.log("Starting scheduled semantic indexing...");
-    
+
     const jobId = crypto.randomUUID();
     const startTime = new Date();
-    
+
     db.insert(backgroundJobs).values({
         id: jobId,
         name: "semantic_index_all",
@@ -20,7 +20,7 @@ export async function semanticIndexing() {
     try {
         // Get all enabled repositories
         const allRepos = db.select().from(repositories).where(eq(repositories.enabled, true)).all();
-        
+
         let successCount = 0;
         let failCount = 0;
 
@@ -45,7 +45,7 @@ export async function semanticIndexing() {
                 durationMs: Date.now() - startTime.getTime()
             })
         }).where(eq(backgroundJobs.id, jobId)).run();
-        
+
         console.log(`Scheduled indexing complete. Success: ${successCount}, Failed: ${failCount}`);
     } catch (err) {
         console.error("Scheduled indexing fatal error:", err);
