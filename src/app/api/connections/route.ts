@@ -31,13 +31,17 @@ export async function POST(req: NextRequest) {
 
     try {
         const { type, name, config, agentId, metadata, tokenLimitDaily } = await req.json();
+        
+        const configStr = JSON.stringify(config);
+        const metadataStr = JSON.stringify(metadata || {});
+
         const [conn] = await db.insert(connections).values({
             userId: session.user.id,
             agentId,
             type,
             name,
-            config,
-            metadata,
+            config: configStr,
+            metadata: metadataStr,
             tokenLimitDaily,
             enabled: true,
         }).returning();
@@ -47,9 +51,9 @@ export async function POST(req: NextRequest) {
             conn.id, 
             type, 
             session.user.id, 
-            config, 
+            configStr, 
             agentId, 
-            metadata, 
+            metadataStr, 
             tokenLimitDaily,
             conn.tokensUsedToday,
             conn.tokensLastResetAt
